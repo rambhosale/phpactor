@@ -22,7 +22,7 @@ class IntegrationTestCase extends TestCase
         $this->logger = new ArrayLogger();
     }
 
-    public function createBuilder(string $source): ReflectorBuilder
+    public function createBuilder(TextDocument|string $source): ReflectorBuilder
     {
         return ReflectorBuilder::create()
             ->addSource($source)
@@ -58,7 +58,7 @@ class IntegrationTestCase extends TestCase
         return new Workspace(__DIR__ . '/../Workspace');
     }
 
-    protected function parseSource(string $source, string $uri = null): SourceFileNode
+    protected function parseSource(string $source, ?string $uri = null): SourceFileNode
     {
         $parser = new Parser();
 

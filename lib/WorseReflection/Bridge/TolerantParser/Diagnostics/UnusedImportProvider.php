@@ -9,16 +9,22 @@ use Microsoft\PhpParser\Node\QualifiedName;
 use Microsoft\PhpParser\Node\SourceFileNode;
 use Microsoft\PhpParser\Node\Statement\NamespaceDefinition;
 use Microsoft\PhpParser\Token;
+use PHPUnit\Framework\Assert;
 use Phpactor\DocblockParser\Ast\Docblock;
 use Phpactor\DocblockParser\Ast\Type\CallableNode;
 use Phpactor\DocblockParser\Ast\Type\ClassNode;
 use Phpactor\TextDocument\ByteOffsetRange;
 use Phpactor\WorseReflection\Bridge\Phpactor\DocblockParser\ParsedDocblock;
 use Phpactor\WorseReflection\Bridge\TolerantParser\Reflection\ReflectionScope;
+use Phpactor\WorseReflection\Core\DiagnosticExample;
 use Phpactor\WorseReflection\Core\DiagnosticProvider;
+use Phpactor\WorseReflection\Core\Diagnostics;
 use Phpactor\WorseReflection\Core\Inference\Frame;
 use Phpactor\WorseReflection\Core\Inference\NodeContextResolver;
 
+/**
+ * Report if a use statement is not required.
+ */
 class UnusedImportProvider implements DiagnosticProvider
 {
     /**
@@ -63,8 +69,7 @@ class UnusedImportProvider implements DiagnosticProvider
                         continue;
                     }
 
-                    $lastPart = $this->lastPart($groupClause->namespaceName->getNamespacedName()->__toString());
-                    $this->imported[$this->prefixedName($groupClause, $lastPart)] = $groupClause;
+                    $this->imported[$this->prefixedName($groupClause, $groupClause->__toString())] = $groupClause;
                 }
                 return [];
             }
@@ -99,8 +104,16 @@ class UnusedImportProvider implements DiagnosticProvider
                 continue;
             }
 
+            // see if the imported name is used by an annotation
             if ($this->usedByAnnotation($contents, $importedName, $imported)) {
                 continue;
+            }
+
+            // scan all usages and check if imported name is used relatively
+            foreach (array_keys($this->usedPrefixes) as $prefix) {
+                if (0 === strpos($prefix, $importedName . '\\')) {
+                    continue 2;
+                }
             }
 
             yield UnusedImportDiagnostic::for(
@@ -113,6 +126,335 @@ class UnusedImportProvider implements DiagnosticProvider
         $this->usedPrefixes = [];
 
         return [];
+    }
+
+    public function examples(): iterable
+    {
+        yield new DiagnosticExample(
+            title: 'aliased import',
+            source: <<<'PHP'
+                <?php
+
+                use Foobar as Barfoo;
+                use Bagggg as Bazgar;
+
+                new Barfoo();
+
+                PHP,
+            valid: false,
+            assertion: function (Diagnostics $diagnostics): void {
+                Assert::assertCount(1, $diagnostics);
+                Assert::assertEquals('Name "Bazgar" is imported but not used', $diagnostics->at(0)->message());
+            }
+        );
+        yield new DiagnosticExample(
+            title: 'aliased for used',
+            source: <<<'PHP'
+                <?php
+
+                use Foobar as Barfoo;
+
+                new Barfoo();
+
+                PHP,
+            valid: true,
+            assertion: function (Diagnostics $diagnostics): void {
+                Assert::assertCount(0, $diagnostics);
+            }
+        );
+        yield new DiagnosticExample(
+            title: 'imported in one namespace but used in another',
+            source: <<<'PHP'
+                <?php
+
+                namespace One {
+                    use Foo;
+                }
+
+                namespace Two {
+                    new Foo();
+                }
+                PHP,
+            valid: false,
+            assertion: function (Diagnostics $diagnostics): void {
+                Assert::assertCount(1, $diagnostics);
+                Assert::assertEquals('Name "Foo" is imported but not used', $diagnostics->at(0)->message());
+            }
+        );
+        yield new DiagnosticExample(
+            title: 'compact namespaced use',
+            source: <<<'PHP'
+                <?php
+
+                namespace Foo\Foobar;
+
+                use Foo\{Ham, Spam};
+
+                new Ham();
+                new Spam();
+                PHP,
+            valid: true,
+            assertion: function (Diagnostics $diagnostics): void {
+                Assert::assertCount(0, $diagnostics);
+            }
+        );
+        yield new DiagnosticExample(
+            title: 'compact use unused',
+            source: <<<'PHP'
+                <?php
+
+                use Foobar\{Barfoo};
+
+                new Foobar();
+                PHP,
+            valid: false,
+            assertion: function (Diagnostics $diagnostics): void {
+                Assert::assertCount(1, $diagnostics);
+                Assert::assertEquals('Name "Barfoo" is imported but not used', $diagnostics->at(0)->message());
+            }
+        );
+        yield new DiagnosticExample(
+            title: 'gh-1866',
+            source: <<<'PHP'
+                <?php
+
+                namespace Phpactor\WorseReflection\Bridge\TolerantParser\Reflection;
+
+                use Microsoft\PhpParser\Node\Expression\ArgumentExpression;
+                use Phpactor\WorseReflection\Core\Name;
+                use Phpactor\WorseReflection\Core\Type\StringLiteralType;
+
+                class ReflectionDeclaredConstant
+                {
+                    private $name;
+                    private ArgumentExpression $value;
+
+                    public function name(): Name
+                    {
+                        if (!$this->name instanceof StringLiteralType) {
+                        }
+                        return Name::fromString($this->name);
+                    }
+                }
+                PHP,
+            valid: true,
+            assertion: function (Diagnostics $diagnostics): void {
+                Assert::assertCount(0, $diagnostics);
+            }
+        );
+        yield new DiagnosticExample(
+            title: 'namespaced unused imports',
+            source: <<<'PHP'
+                <?php
+
+                namespace Foo;
+
+                use Bar\Foobar;
+                use Bag\Boo;
+
+                new Boo();
+                PHP,
+            valid: false,
+            assertion: function (Diagnostics $diagnostics): void {
+                Assert::assertCount(1, $diagnostics);
+            }
+        );
+        yield new DiagnosticExample(
+            title: 'namespaced used imports',
+            source: <<<'PHP'
+                <?php
+
+                namespace Foo;
+
+                use Bag\Boo;
+
+                new Boo();
+                PHP,
+            valid: true,
+            assertion: function (Diagnostics $diagnostics): void {
+                Assert::assertCount(0, $diagnostics);
+            }
+        );
+        yield new DiagnosticExample(
+            title: 'trait',
+            source: <<<'PHP'
+                <?php
+
+                namespace Foo;
+
+                use Bag\Boo;
+
+                class Foobar {
+                    use Boo;
+                }
+                PHP,
+            valid: true,
+            assertion: function (Diagnostics $diagnostics): void {
+                Assert::assertCount(0, $diagnostics);
+            }
+        );
+        yield new DiagnosticExample(
+            title: 'unused imort',
+            source: <<<'PHP'
+                <?php
+
+                use Foobar;
+                PHP,
+            valid: false,
+            assertion: function (Diagnostics $diagnostics): void {
+                Assert::assertCount(1, $diagnostics);
+                Assert::assertEquals('Name "Foobar" is imported but not used', $diagnostics->at(0)->message());
+            }
+        );
+        yield new DiagnosticExample(
+            title: 'used by complex docblock',
+            source: <<<'PHP'
+                <?php
+
+                namespace Bar;
+
+                use Closure;
+
+                /**
+                 * @param string|Closure(string): string $bar
+                 */
+                function fo($bar): void
+                {
+                }
+                PHP,
+            valid: true,
+            assertion: function (Diagnostics $diagnostics): void {
+                Assert::assertCount(0, $diagnostics);
+            }
+        );
+        yield new DiagnosticExample(
+            title: 'used by doctrine annotation',
+            source: <<<'PHP'
+                <?php
+
+                use Doctrine\ORM;
+
+                /**
+                 * @ORM\Foo $bar
+                 */
+                function fo($foo): void
+                {
+                }
+                PHP,
+            valid: true,
+            assertion: function (Diagnostics $diagnostics): void {
+                Assert::assertCount(0, $diagnostics);
+            }
+        );
+        yield new DiagnosticExample(
+            title: 'used by doctrine annotation aliased',
+            source: <<<'PHP'
+                <?php
+
+                use Doctrine\ORM as Mapping;
+
+                /**
+                 * @Mapping\Foo $bar
+                 */
+                function fo($foo): void
+                {
+                }
+                PHP,
+            valid: true,
+            assertion: function (Diagnostics $diagnostics): void {
+                Assert::assertCount(0, $diagnostics);
+            }
+        );
+        yield new DiagnosticExample(
+            title: 'used by dcotrine attribute',
+            source: <<<'PHP'
+                <?php
+
+                use Doctrine\Mapping;
+
+                #[Mapping\Id]
+                function fo($foo): void
+                {
+                }
+                PHP,
+            valid: true,
+            assertion: function (Diagnostics $diagnostics): void {
+                Assert::assertCount(0, $diagnostics);
+            }
+        );
+        yield new DiagnosticExample(
+            title: 'used by namespaced annotation',
+            source: <<<'PHP'
+                <?php
+
+                use Foobar\Foo;
+
+                /**
+                 * @param Foo $bar
+                 */
+                function fo($foo): void
+                {
+                }
+                PHP,
+            valid: true,
+            assertion: function (Diagnostics $diagnostics): void {
+                Assert::assertCount(0, $diagnostics);
+            }
+        );
+        yield new DiagnosticExample(
+            title: 'used by throws annotation',
+            source: <<<'PHP'
+                <?php
+
+                use RuntimeException;
+
+                /**
+                 * @throws RuntimeException
+                 */
+                function fo($foo): void
+                {
+                }
+                PHP,
+            valid: true,
+            assertion: function (Diagnostics $diagnostics): void {
+                Assert::assertCount(0, $diagnostics);
+            }
+        );
+        yield new DiagnosticExample(
+            title: 'used by import',
+            source: <<<'PHP'
+                <?php
+
+                use Foobar;
+
+                new Foobar();
+                PHP,
+            valid: true,
+            assertion: function (Diagnostics $diagnostics): void {
+                Assert::assertCount(0, $diagnostics);
+            }
+        );
+        yield new DiagnosticExample(
+            title: 'parent relative segment',
+            source: <<<'PHP'
+                <?php
+
+                namespace Phpactor;
+
+                use Dummy;
+
+                class Test {
+                    /**
+                     * @var Dummy\Foo
+                     */
+                    private $foo;
+                }
+                PHP,
+            valid: true,
+            assertion: function (Diagnostics $diagnostics): void {
+                Assert::assertCount(0, $diagnostics);
+            }
+        );
     }
 
     private function extractDocblockNames(Docblock $docblock, NodeContextResolver $resolver, Node $node): void
@@ -135,13 +477,13 @@ class UnusedImportProvider implements DiagnosticProvider
     private function usedByAnnotation(string $contents, string $imported, $node): bool
     {
         $imported = explode(':', $imported)[1];
-        return false !== strpos($contents, '@' . $imported);
+        return str_contains($contents, '@' . $imported);
     }
 
+    /** @phpstan-ignore-next-line TP lies */
     private function lastPart(string $name): string
     {
         $parts = array_filter(explode('\\', $name));
-        /** @phpstan-ignore-next-line TP lies */
         if (!$parts) {
             return '';
         }
@@ -157,6 +499,9 @@ class UnusedImportProvider implements DiagnosticProvider
     {
         $definition = $node->getNamespaceDefinition();
         if (null === $definition) {
+            return '';
+        }
+        if (!$definition->name instanceof QualifiedName) {
             return '';
         }
         return (string)$definition->name;

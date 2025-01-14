@@ -9,11 +9,8 @@ use Phpactor\WorseReflection\Core\Types;
 
 final class NullableType extends Type implements HasEmptyType
 {
-    public Type $type;
-
-    public function __construct(Type $type)
+    public function __construct(public Type $type)
     {
-        $this->type = $type;
     }
 
     public function __toString(): string
@@ -35,9 +32,19 @@ final class NullableType extends Type implements HasEmptyType
         return $this->type->accepts($type);
     }
 
-    public function toTypes(): Types
+    public function expandTypes(): Types
     {
         return new Types([new NullType(), $this->type]);
+    }
+
+    public function allTypes(): Types
+    {
+        $types = new Types([]);
+        foreach ($this->expandTypes() as $type) {
+            $types = $types->merge($type->allTypes());
+        }
+
+        return $types;
     }
 
     public function isNull(): bool

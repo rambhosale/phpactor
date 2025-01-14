@@ -19,11 +19,8 @@ class ReplaceQualifierWithImportProvider implements CodeActionProvider
 {
     public const KIND = 'refactor.class.simplify';
 
-    private ReplaceQualifierWithImport $replaceQualifierWithImport;
-
-    public function __construct(ReplaceQualifierWithImport $replaceQualifierWithImport)
+    public function __construct(private ReplaceQualifierWithImport $replaceQualifierWithImport)
     {
-        $this->replaceQualifierWithImport = $replaceQualifierWithImport;
     }
 
     public function kinds(): array
@@ -59,5 +56,10 @@ class ReplaceQualifierWithImportProvider implements CodeActionProvider
                 ])
             ];
         });
+    }
+
+    public function describe(): string
+    {
+        return 'replace qualifier with importer';
     }
 }

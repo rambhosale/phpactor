@@ -4,19 +4,22 @@ namespace Phpactor\ClassMover\Domain\Name;
 
 final class ImportedName extends Namespace_
 {
-    private $alias;
+    private ?string $alias = null;
 
-    public function __toString()
+    public function __toString(): string
     {
         return implode('\\', $this->parts);
     }
 
     public function getShortName(): string
     {
-        return end($this->parts);
+        /** @var string $lastPart */
+        $lastPart = end($this->parts);
+
+        return $lastPart;
     }
 
-    public function qualifies(QualifiedName $name)
+    public function qualifies(QualifiedName $name): bool
     {
         $head = $this->alias ?: $this->head();
         $qualifies = $head === $name->base();
@@ -29,7 +32,7 @@ final class ImportedName extends Namespace_
         return FullyQualifiedName::fromString($this->parentNamespace()->__toString().'\\'.$name->__toString());
     }
 
-    public function withAlias(string $alias)
+    public function withAlias(string $alias): self
     {
         $new = new self($this->parts);
         $new->alias = $alias;
@@ -37,16 +40,13 @@ final class ImportedName extends Namespace_
         return $new;
     }
 
-    public function isAlias()
+    public function isAlias(): bool
     {
         return null !== $this->alias;
     }
 
-    public static function fromStringAsAlias(string $string)
+    public static function fromStringAsAlias(string $string): self
     {
-        $new = parent::fromString($string);
-        $new->isAlias = true;
-
-        return $new;
+        return parent::fromString($string);
     }
 }

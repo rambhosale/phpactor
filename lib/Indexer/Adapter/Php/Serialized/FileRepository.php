@@ -15,11 +15,14 @@ use Throwable;
 class FileRepository
 {
     /**
+     * Increment this number each time there is a B/C break in the index.
+     */
+    private const VERSION = 2;
+
+    /**
      * Flush to the filesystem after BATCH_SIZE updates
      */
     private const BATCH_SIZE = 10000;
-
-    private string $path;
 
     private int $lastUpdate;
 
@@ -32,14 +35,13 @@ class FileRepository
 
     private int $counter = 0;
 
-    private RecordSerializer $serializer;
-
-    public function __construct(string $path, RecordSerializer $serializer, ?LoggerInterface $logger = null)
-    {
-        $this->path = $path;
+    public function __construct(
+        private string $path,
+        private RecordSerializer $serializer,
+        ?LoggerInterface $logger = null
+    ) {
         $this->initializeLastUpdate();
         $this->logger = $logger ?: new NullLogger();
-        $this->serializer = $serializer;
     }
 
     public function put(Record $record): void
@@ -101,7 +103,7 @@ class FileRepository
         return $deserialized;
     }
 
-    public function putTimestamp(int $time = null): void
+    public function putTimestamp(?int $time = null): void
     {
         $time = $time ?? time();
         $this->ensureDirectoryExists(dirname($this->timestampPath()));
@@ -167,7 +169,7 @@ class FileRepository
 
     private function timestampPath(): string
     {
-        return $this->path . '/timestamp';
+        return sprintf('%s/timestamp.v%d', $this->path, self::VERSION);
     }
 
     private function pathFor(Record $record): string

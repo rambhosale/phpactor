@@ -2,6 +2,7 @@
 
 namespace Phpactor\Extension\LanguageServerIndexer\Handler;
 
+use function Amp\call;
 use Amp\Promise;
 use Phpactor\Extension\LanguageServerIndexer\Model\WorkspaceSymbolProvider;
 use Phpactor\LanguageServerProtocol\ServerCapabilities;
@@ -12,11 +13,8 @@ use Phpactor\LanguageServer\Core\Handler\Handler;
 
 class WorkspaceSymbolHandler implements Handler, CanRegisterCapabilities
 {
-    private WorkspaceSymbolProvider $provider;
-
-    public function __construct(WorkspaceSymbolProvider $provider)
+    public function __construct(private WorkspaceSymbolProvider $provider)
     {
-        $this->provider = $provider;
     }
 
     public function methods(): array
@@ -32,7 +30,7 @@ class WorkspaceSymbolHandler implements Handler, CanRegisterCapabilities
     public function symbol(
         WorkspaceSymbolParams $params
     ): Promise {
-        return \Amp\call(function () use ($params) {
+        return call(function () use ($params) {
             return $this->provider->provideFor($params->query);
         });
     }

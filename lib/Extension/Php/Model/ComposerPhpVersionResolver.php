@@ -4,11 +4,8 @@ namespace Phpactor\Extension\Php\Model;
 
 class ComposerPhpVersionResolver implements PhpVersionResolver
 {
-    private string $composerJsonPath;
-
-    public function __construct(string $composerJsonPath)
+    public function __construct(private string $composerJsonPath)
     {
-        $this->composerJsonPath = $composerJsonPath;
     }
 
 
@@ -22,7 +19,8 @@ class ComposerPhpVersionResolver implements PhpVersionResolver
             return null;
         }
 
-        if (!$json = json_decode($contents, true)) {
+        $json = json_decode($contents, true);
+        if (!$json || !is_array($json)) {
             return null;
         }
 
@@ -37,8 +35,14 @@ class ComposerPhpVersionResolver implements PhpVersionResolver
         return null;
     }
 
+    public function name(): string
+    {
+        return 'composer';
+    }
+
     private function resolveLowestVersion(string $versionString): ?string
     {
+        /** @phpstan-ignore-next-line */
         $versions = array_map(function (string $versionString) {
             return preg_replace('/[^0-9.]/', '', trim($versionString));
         }, (array)preg_split('{\|\|?}', $versionString));

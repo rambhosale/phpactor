@@ -22,14 +22,8 @@ class SymfonyContainerCompletor implements TolerantCompletor
 {
     const CONTAINER_CLASS = 'Symfony\\Component\\DependencyInjection\\ContainerInterface';
 
-    private Reflector $reflector;
-
-    private SymfonyContainerInspector $inspector;
-
-    public function __construct(Reflector $reflector, SymfonyContainerInspector $inspector)
+    public function __construct(private Reflector $reflector, private SymfonyContainerInspector $inspector)
     {
-        $this->reflector = $reflector;
-        $this->inspector = $inspector;
     }
 
     public function complete(Node $node, TextDocument $source, ByteOffset $offset): Generator
@@ -60,7 +54,7 @@ class SymfonyContainerCompletor implements TolerantCompletor
         }
 
         $expression = $memberAccess->dereferencableExpression;
-        $containerType = $this->reflector->reflectOffset($source, $expression->getEndPosition())->symbolContext()->type();
+        $containerType = $this->reflector->reflectOffset($source, $expression->getEndPosition())->nodeContext()->type();
 
         if ($containerType->instanceof(TypeFactory::class(self::CONTAINER_CLASS))->isFalseOrMaybe()) {
             return;

@@ -10,22 +10,11 @@ use function array_reduce;
 final class OffsetExtractorResult
 {
     /**
-     * @var array<string,ByteOffset[]>
+     * @param array<string, ByteOffset[]> $offsets
+     * @param array<string, ByteOffsetRange[]> $ranges
      */
-    private array $offsets = [];
-
-    /**
-     * @var array<string,ByteOffsetRange[]>
-     */
-    private array $ranges = [];
-
-    private string $source;
-
-    public function __construct(string $source, array $offsetResults, array $rangeResults)
+    public function __construct(private string $source, private array $offsets, private array $ranges)
     {
-        $this->source = $source;
-        $this->offsets = $offsetResults;
-        $this->ranges = $rangeResults;
     }
 
     public function source(): string
@@ -36,7 +25,7 @@ final class OffsetExtractorResult
     /**
      * @return ByteOffset[]
      */
-    public function offsets(string $name = null): array
+    public function offsets(?string $name = null): array
     {
         if (null === $name) {
             return array_reduce($this->offsets, function (array $carry, array $offsets) {
@@ -55,7 +44,7 @@ final class OffsetExtractorResult
         return $this->offsets[$name];
     }
 
-    public function offset(string $name = null): ByteOffset
+    public function offset(?string $name = null): ByteOffset
     {
         $offsets = $this->offsets($name);
 
@@ -74,7 +63,7 @@ final class OffsetExtractorResult
     /**
      * @return ByteOffsetRange[]
      */
-    public function ranges(string $name = null): array
+    public function ranges(?string $name = null): array
     {
         if (null === $name) {
             return array_reduce($this->ranges, function (array $carry, array $ranges) {
@@ -93,7 +82,7 @@ final class OffsetExtractorResult
         return $this->ranges[$name];
     }
 
-    public function range(string $name = null): ByteOffsetRange
+    public function range(?string $name = null): ByteOffsetRange
     {
         $ranges = $this->ranges($name);
 

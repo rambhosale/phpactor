@@ -4,14 +4,11 @@ namespace Phpactor\CodeBuilder\Domain\Prototype;
 
 class UpdatePolicy
 {
-    private bool $doUpdate;
-
-    public function __construct(bool $doUpdate)
+    public function __construct(private bool $doUpdate)
     {
-        $this->doUpdate = $doUpdate;
     }
 
-    public static function fromModifiedState(bool $modified)
+    public static function fromModifiedState(bool $modified): self
     {
         return new self($modified);
     }

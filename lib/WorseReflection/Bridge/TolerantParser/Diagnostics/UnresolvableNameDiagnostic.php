@@ -12,26 +12,11 @@ class UnresolvableNameDiagnostic implements Diagnostic
     public const TYPE_CLASS = 'class';
     public const TYPE_FUNCTION = 'function';
 
-    private ByteOffsetRange $range;
-
-    /**
-     * @var self::TYPE_*
-     */
-    private string $type;
-
-    private Name $name;
-
     /**
      * @param self::TYPE_* $type
      */
-    private function __construct(
-        ByteOffsetRange $range,
-        string $type,
-        Name $name
-    ) {
-        $this->range = $range;
-        $this->type = $type;
-        $this->name = $name;
+    private function __construct(private ByteOffsetRange $range, private string $type, private Name $name)
+    {
     }
 
     public static function forFunction(ByteOffsetRange $range, Name $name): self
@@ -70,5 +55,15 @@ class UnresolvableNameDiagnostic implements Diagnostic
     public function name(): Name
     {
         return $this->name;
+    }
+
+    public function tags(): array
+    {
+        return [];
+    }
+
+    public function code(): string
+    {
+        return 'unresolved_name';
     }
 }

@@ -18,23 +18,14 @@ use Phpactor\CodeTransform\Domain\Refactor\PropertyAccessGenerator;
 
 class WorseGenerateAccessor implements PropertyAccessGenerator
 {
-    private Reflector $reflector;
-
-    private Updater $updater;
-
-    private string $prefix;
-
     private bool $upperCaseFirst;
 
     public function __construct(
-        Reflector $reflector,
-        Updater $updater,
-        string $prefix = '',
-        bool $upperCaseFirst = null
+        private Reflector $reflector,
+        private Updater $updater,
+        private string $prefix = '',
+        ?bool $upperCaseFirst = null
     ) {
-        $this->reflector = $reflector;
-        $this->updater = $updater;
-        $this->prefix = $prefix;
         $this->upperCaseFirst = ($prefix && $upperCaseFirst === null) || $upperCaseFirst;
     }
 
@@ -43,7 +34,7 @@ class WorseGenerateAccessor implements PropertyAccessGenerator
      */
     public function generate(SourceCode $sourceCode, array $propertyNames, int $offset): TextEdits
     {
-        $class = $this->class((string) $sourceCode, $offset);
+        $class = $this->class($sourceCode, $offset);
         $allProperties = $class->properties();
 
         $properties = array_map(fn (string $name) => $allProperties->get($name), $propertyNames);
@@ -96,17 +87,17 @@ class WorseGenerateAccessor implements PropertyAccessGenerator
         $containingClass = $this->reflector->reflectClassLike($className);
         $worseSourceCode = $containingClass->sourceCode();
 
-        if ($worseSourceCode->path() != $sourceCode->path()) {
+        if ($worseSourceCode->uri()?->path() != $sourceCode->uri()->path()) {
             return $sourceCode;
         }
 
         return SourceCode::fromStringAndPath(
             $worseSourceCode->__toString(),
-            $worseSourceCode->path()
+            $worseSourceCode->uri()?->path()
         );
     }
 
-    private function class(string $source, int $offset): ReflectionClass
+    private function class(SourceCode $source, int $offset): ReflectionClass
     {
         $classes = $this->reflector->reflectClassesIn($source)->classes();
 
@@ -123,7 +114,7 @@ class WorseGenerateAccessor implements PropertyAccessGenerator
         foreach ($classes as $class) {
             $position = $class->position();
 
-            if ($position->start() <= $offset && $offset <= $position->end()) {
+            if ($position->start()->toInt() <= $offset && $offset <= $position->end()->toInt()) {
                 return $class;
             }
         }

@@ -14,11 +14,6 @@ use function Amp\delay;
 class WorkspaceIndex
 {
     /**
-     * @var SourceCodeReflector
-     */
-    private $reflector;
-
-    /**
      * @var array<string, TextDocument>
      */
     private $byName = [];
@@ -41,24 +36,14 @@ class WorkspaceIndex
      */
     private $waiting = false;
 
-    /**
-     * @var int
-     */
-    private $updateInterval;
-
-    public function __construct(SourceCodeReflector $reflector, int $updateInterval = 1000)
+    public function __construct(private SourceCodeReflector $reflector,
+ private int $updateInterval = 1000)
     {
-        $this->reflector = $reflector;
-        $this->updateInterval = $updateInterval;
     }
 
     public function documentForName(Name $name): ?TextDocument
     {
-        if (isset($this->byName[$name->full()])) {
-            return $this->byName[$name->full()];
-        }
-
-        return null;
+        return $this->byName[$name->full()] ?? null;
     }
 
     public function index(TextDocument $textDocument): void
@@ -127,7 +112,7 @@ class WorkspaceIndex
             unset($this->byName[$name]);
         }
 
-        if (!empty($newNames)) {
+        if ($newNames !== []) {
             $this->documentToNameMap[(string)$textDocument->uri()] = $newNames;
         } else {
             unset($this->documentToNameMap[(string)$textDocument->uri()]);

@@ -17,17 +17,11 @@ use Phpactor\Extension\Core\Console\Handler\FormatHandler;
 
 class ClassNewCommand extends Command
 {
-    private DumperRegistry $dumperRegistry;
-
-    private ClassNew $classNew;
-
     public function __construct(
-        ClassNew $classNew,
-        DumperRegistry $dumperRegistry
+        private ClassNew $classNew,
+        private DumperRegistry $dumperRegistry
     ) {
         parent::__construct();
-        $this->dumperRegistry = $dumperRegistry;
-        $this->classNew = $classNew;
     }
 
     public function configure(): void
@@ -60,7 +54,7 @@ class ClassNewCommand extends Command
 
         try {
             $sourceCode = $this->generateSourceCode($src, $variant, $input, $output);
-        } catch (FileAlreadyExists $exception) {
+        } catch (FileAlreadyExists) {
             return [
                 'src' => $src,
                 'path' => null,
@@ -70,7 +64,7 @@ class ClassNewCommand extends Command
 
         return [
             'src' => $src,
-            'path' => $sourceCode->path(),
+            'path' => $sourceCode->uri()->path(),
             'exists' => false,
         ];
     }

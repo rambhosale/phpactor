@@ -10,18 +10,15 @@ use Phpactor\WorseReflection\Core\Trinary;
 use Phpactor\WorseReflection\Core\Type;
 use Phpactor\WorseReflection\Reflector;
 
-class ClassType extends Type implements ClassNamedType, HasEmptyType
+class ClassType extends Type implements ClassLikeType, HasEmptyType
 {
-    public ClassName $name;
-
     /**
      * @var ReflectionMemberCollection<ReflectionMember>
      */
     public ReflectionMemberCollection $members;
 
-    public function __construct(ClassName $name)
+    public function __construct(public ClassName $name)
     {
-        $this->name = $name;
         $this->members = ClassLikeReflectionMemberCollection::empty();
     }
 

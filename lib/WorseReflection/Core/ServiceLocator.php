@@ -13,7 +13,6 @@ use Phpactor\WorseReflection\Core\Inference\Walker;
 use Phpactor\WorseReflection\Core\Inference\Walker\DiagnosticsWalker;
 use Phpactor\WorseReflection\Core\Inference\Walker\PassThroughWalker;
 use Phpactor\WorseReflection\Core\Inference\Walker\FunctionLikeWalker;
-use Phpactor\WorseReflection\Core\Inference\Walker\IncludeWalker;
 use Phpactor\WorseReflection\Core\Inference\Walker\VariableWalker;
 use Phpactor\WorseReflection\Core\Inference\NodeToTypeConverter;
 use Phpactor\WorseReflection\Core\Inference\NodeContextResolver;
@@ -41,29 +40,9 @@ class ServiceLocator
 
     private DocBlockFactory $docblockFactory;
 
-    /**
-     * @var array<int,ReflectionMemberProvider>
-     */
-    private array $methodProviders;
-
     private Cache $cache;
 
-    /**
-     * @var DiagnosticProvider[]
-     */
-    private array $diagnosticProviders;
-
-    /**
-     * @var Walker[]
-     */
-    private array $frameWalkers;
-
     private NodeToTypeConverter $nameResolver;
-
-    /**
-     * @var MemberContextResolver[]
-     */
-    private array $memberContextResolvers;
 
     /**
      * @param Walker[] $frameWalkers
@@ -75,12 +54,13 @@ class ServiceLocator
         SourceCodeLocator $sourceLocator,
         LoggerInterface $logger,
         SourceCodeReflectorFactory $reflectorFactory,
-        array $frameWalkers,
-        array $methodProviders,
-        array $diagnosticProviders,
-        array $memberContextResolvers,
+        private array $frameWalkers,
+        private array $methodProviders,
+        private array $diagnosticProviders,
+        private array $memberContextResolvers,
         Cache $cache,
-        bool $enableContextualLocation = false
+        private CacheForDocument $cacheForDocument,
+        bool $enableContextualLocation = false,
     ) {
         $sourceReflector = $reflectorFactory->create($this);
 
@@ -114,12 +94,7 @@ class ServiceLocator
         $this->logger = $logger;
 
         $this->nameResolver = new NodeToTypeConverter($this->reflector, $this->logger);
-
-        $this->methodProviders = $methodProviders;
-        $this->memberContextResolvers = $memberContextResolvers;
-        $this->diagnosticProviders = $diagnosticProviders;
         $this->cache = $cache;
-        $this->frameWalkers = $frameWalkers;
     }
 
     public function reflector(): Reflector
@@ -142,12 +117,15 @@ class ServiceLocator
         return $this->docblockFactory;
     }
 
-    public function symbolContextResolver(): NodeContextResolver
+    public function nodeContextResolver(): NodeContextResolver
     {
         return new NodeContextResolver(
             $this->reflector,
             $this->docblockFactory,
             $this->logger,
+            // use a cache which is local to this resolver instance
+            // this avoids issues with stale cache data while also
+            // providing memoised caching for this resolver instance.
             new StaticCache(),
             (new DefaultResolverFactory(
                 $this->reflector,
@@ -164,12 +142,11 @@ class ServiceLocator
     public function frameBuilder(): FrameResolver
     {
         return FrameResolver::create(
-            $this->symbolContextResolver(),
+            $this->nodeContextResolver(),
             array_merge([
                 new FunctionLikeWalker(),
                 new PassThroughWalker(),
                 new VariableWalker($this->docblockFactory),
-                new IncludeWalker($this->logger),
             ], $this->frameWalkers),
         );
     }
@@ -182,6 +159,11 @@ class ServiceLocator
     public function cache(): Cache
     {
         return $this->cache;
+    }
+
+    public function cacheForDocument(): CacheForDocument
+    {
+        return $this->cacheForDocument;
     }
 
     public function newDiagnosticsWalker(): DiagnosticsWalker

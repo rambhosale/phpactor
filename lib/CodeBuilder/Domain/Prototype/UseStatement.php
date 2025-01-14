@@ -9,18 +9,11 @@ class UseStatement
     const TYPE_CLASS = 'class';
     const TYPE_FUNCTION = 'function';
 
-    private Type $className;
-
-    private ?string $alias;
-
-    private ?string $type;
-
-    public function __construct(Type $className, string $alias = null, string $type = self::TYPE_CLASS)
-    {
-        $this->className = $className;
-        $this->alias = $alias;
-        $this->type = $type;
-
+    public function __construct(
+        private Type $className,
+        private ?string $alias = null,
+        private ?string $type = self::TYPE_CLASS
+    ) {
         if (!in_array($type, [ self::TYPE_CLASS, self::TYPE_FUNCTION ])) {
             throw new RuntimeException(sprintf(
                 'Invalid use type'
@@ -28,7 +21,7 @@ class UseStatement
         }
     }
 
-    public function __toString()
+    public function __toString(): string
     {
         if ($this->alias) {
             return (string) $this->className . ' as ' . $this->alias;
@@ -37,17 +30,17 @@ class UseStatement
         return (string) $this->className;
     }
 
-    public static function fromNameAndAlias(string $type, string $alias = null)
+    public static function fromNameAndAlias(string $type, ?string $alias = null): self
     {
         return new self(Type::fromString($type), $alias);
     }
 
-    public static function fromNameAliasAndType(string $name, string $alias = null, string $type)
+    public static function fromNameAliasAndType(string $name, ?string $alias, string $type): self
     {
         return new self(Type::fromString($name), $alias, $type);
     }
 
-    public static function fromType(string $type)
+    public static function fromType(string $type): self
     {
         return new self(Type::fromString($type));
     }
@@ -57,7 +50,7 @@ class UseStatement
         return null !== $this->alias;
     }
 
-    public function alias(): string
+    public function alias(): ?string
     {
         return $this->alias;
     }
@@ -67,7 +60,7 @@ class UseStatement
         return $this->className;
     }
 
-    public function type(): string
+    public function type(): ?string
     {
         return $this->type;
     }

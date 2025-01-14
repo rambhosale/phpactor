@@ -2,6 +2,7 @@
 
 namespace Phpactor\Extension\LanguageServerPsalm\Model\Linter;
 
+use function Amp\call;
 use Amp\Delayed;
 use Amp\Promise;
 use Phpactor\Extension\LanguageServerPsalm\Model\Linter;
@@ -10,24 +11,15 @@ use Phpactor\LanguageServerProtocol\Diagnostic;
 class TestLinter implements Linter
 {
     /**
-     * @var array<Diagnostic>
-     */
-    private array $diagnostics;
-
-    private int $delay;
-
-    /**
      * @param array<Diagnostic> $diagnostics
      */
-    public function __construct(array $diagnostics, int $delay)
+    public function __construct(private array $diagnostics, private int $delay)
     {
-        $this->diagnostics = $diagnostics;
-        $this->delay = $delay;
     }
 
     public function lint(string $url, ?string $text): Promise
     {
-        return \Amp\call(function () {
+        return call(function () {
             yield new Delayed($this->delay);
             return $this->diagnostics;
         });

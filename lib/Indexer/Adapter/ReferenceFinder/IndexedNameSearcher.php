@@ -15,11 +15,8 @@ use Phpactor\TextDocument\TextDocumentUri;
 
 class IndexedNameSearcher implements NameSearcher
 {
-    private SearchClient $client;
-
-    public function __construct(SearchClient $client)
+    public function __construct(private SearchClient $client)
     {
-        $this->client = $client;
     }
 
     /**
@@ -31,8 +28,7 @@ class IndexedNameSearcher implements NameSearcher
             return;
         }
 
-        $fullyQualified = substr($name, 0, 1) === '\\';
-
+        $fullyQualified = str_starts_with($name, '\\');
         if ($fullyQualified) {
             $criteria = Criteria::fqnBeginsWith(substr($name, 1));
         } else {
@@ -67,6 +63,10 @@ class IndexedNameSearcher implements NameSearcher
      */
     private function resolveTypeCriteria(?string $type): ?Criteria
     {
+        if ($type === NameSearcherType::ATTRIBUTE) {
+            return Criteria::isAttribute();
+        }
+
         if ($type === NameSearcherType::CLASS_) {
             return Criteria::isClassConcrete();
         }

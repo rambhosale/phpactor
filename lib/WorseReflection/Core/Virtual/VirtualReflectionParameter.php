@@ -3,7 +3,9 @@
 namespace Phpactor\WorseReflection\Core\Virtual;
 
 use Phpactor\WorseReflection\Core\DefaultValue;
-use Phpactor\WorseReflection\Core\Position;
+use Phpactor\TextDocument\ByteOffsetRange;
+use Phpactor\WorseReflection\Core\DocBlock\DocBlock;
+use Phpactor\WorseReflection\Core\DocBlock\PlainDocblock;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionFunctionLike;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionParameter;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionScope;
@@ -11,44 +13,17 @@ use Phpactor\WorseReflection\Core\Type;
 
 class VirtualReflectionParameter implements ReflectionParameter
 {
-    private string $name;
-
-    private ReflectionFunctionLike $functionLike;
-
-    private Type $inferredType;
-
-    private Type $type;
-
-    private DefaultValue $default;
-
-    private bool $byReference;
-
-    private ReflectionScope $scope;
-
-    private Position $position;
-
-    private int $index;
-
     public function __construct(
-        string $name,
-        ReflectionFunctionLike $functionLike,
-        Type $inferredType,
-        Type $type,
-        DefaultValue $default,
-        bool $byReference,
-        ReflectionScope $scope,
-        Position $position,
-        int $index
+        private string $name,
+        private ReflectionFunctionLike $functionLike,
+        private Type $inferredType,
+        private Type $type,
+        private DefaultValue $default,
+        private bool $byReference,
+        private ReflectionScope $scope,
+        private ByteOffsetRange $position,
+        private int $index
     ) {
-        $this->name = $name;
-        $this->functionLike = $functionLike;
-        $this->inferredType = $inferredType;
-        $this->type = $type;
-        $this->default = $default;
-        $this->byReference = $byReference;
-        $this->scope = $scope;
-        $this->position = $position;
-        $this->index = $index;
     }
 
     public function scope(): ReflectionScope
@@ -56,7 +31,7 @@ class VirtualReflectionParameter implements ReflectionParameter
         return $this->scope;
     }
 
-    public function position(): Position
+    public function position(): ByteOffsetRange
     {
         return $this->position;
     }
@@ -109,5 +84,10 @@ class VirtualReflectionParameter implements ReflectionParameter
     public function index(): int
     {
         return $this->index;
+    }
+
+    public function docblock(): DocBlock
+    {
+        return new PlainDocblock('');
     }
 }

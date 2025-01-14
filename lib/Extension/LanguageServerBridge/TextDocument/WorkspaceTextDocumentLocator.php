@@ -12,18 +12,15 @@ use Phpactor\TextDocument\TextDocumentUri;
 
 class WorkspaceTextDocumentLocator implements TextDocumentLocator
 {
-    private PhpactorWorkspace $workspace;
-
-    public function __construct(PhpactorWorkspace $workspace)
+    public function __construct(private PhpactorWorkspace $workspace)
     {
-        $this->workspace = $workspace;
     }
 
     public function get(TextDocumentUri $uri): TextDocument
     {
         try {
             return TextDocumentConverter::fromLspTextItem($this->workspace->get($uri->__toString()));
-        } catch (UnknownDocument $unknown) {
+        } catch (UnknownDocument) {
         }
 
         throw TextDocumentNotFound::fromUri($uri);

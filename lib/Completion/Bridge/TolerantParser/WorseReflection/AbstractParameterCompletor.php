@@ -24,21 +24,20 @@ use Phpactor\WorseReflection\Reflector;
 
 abstract class AbstractParameterCompletor
 {
-    protected Reflector $reflector;
-
     protected VariableCompletionHelper $variableCompletionHelper;
 
-    private ObjectFormatter $formatter;
-
-    public function __construct(Reflector $reflector, ObjectFormatter $formatter, VariableCompletionHelper $variableCompletionHelper = null)
-    {
-        $this->reflector = $reflector;
-        $this->formatter = $formatter;
+    public function __construct(
+        protected Reflector $reflector,
+        private ObjectFormatter $formatter,
+        ?VariableCompletionHelper $variableCompletionHelper = null
+    ) {
         $this->variableCompletionHelper = $variableCompletionHelper ?: new VariableCompletionHelper($reflector);
     }
 
     /**
      * @param WorseVariable[] $variables
+     *
+     * @return Generator<Suggestion>
      */
     protected function populateResponse(Node $callableExpression, ReflectionFunctionLike $functionLikeReflection, array $variables): Generator
     {
@@ -108,7 +107,7 @@ abstract class AbstractParameterCompletor
         // if we have a trailing comma, e.g. the argument list is `$foobar, `
         // then the above elements will contain only `$foobar` but the param
         // index should be incremented.
-        if (substr(trim($argumentList->getText()), -1, 1) === ',') {
+        if (str_ends_with(trim($argumentList->getText()), ',')) {
             return $index + 1;
         }
 
@@ -121,7 +120,7 @@ abstract class AbstractParameterCompletor
             return true;
         }
 
-        foreach ($variable->type()->toTypes() as $variableType) {
+        foreach ($variable->type()->expandTypes() as $variableType) {
             if ($parameter->inferredType()->accepts($variableType)->isTrue()) {
                 return true;
             }

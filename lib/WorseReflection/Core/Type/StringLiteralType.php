@@ -9,11 +9,14 @@ class StringLiteralType extends StringType implements Literal, Generalizable, Co
 {
     use LiteralTrait;
 
-    public string $value;
-
-    public function __construct(string $value)
+    public function __construct(public string $value)
     {
-        $this->value = $value;
+        $this->value = (function (string $value, int $length) {
+            if (strlen($value) > $length) {
+                return substr($value, 0, -3) . '...';
+            }
+            return $value;
+        })($value, 255);
     }
 
     public function __toString(): string
@@ -21,10 +24,7 @@ class StringLiteralType extends StringType implements Literal, Generalizable, Co
         return sprintf('"%s"', $this->value);
     }
 
-    /**
-     * @return mixed
-     */
-    public function value()
+    public function value(): string
     {
         return $this->value;
     }

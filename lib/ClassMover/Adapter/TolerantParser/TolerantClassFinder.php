@@ -4,10 +4,12 @@ namespace Phpactor\ClassMover\Adapter\TolerantParser;
 
 use Microsoft\PhpParser\MissingToken;
 use Microsoft\PhpParser\Node\Expression\CallExpression;
+use Microsoft\PhpParser\Node\NamespaceAliasingClause;
 use Microsoft\PhpParser\Node\NamespaceUseClause;
 use Microsoft\PhpParser\Node\QualifiedName as ParserQualifiedName;
 use Microsoft\PhpParser\Node\SourceFileNode;
 use Microsoft\PhpParser\Node\Statement\ClassDeclaration;
+use Microsoft\PhpParser\Node\Statement\EnumDeclaration;
 use Microsoft\PhpParser\Node\Statement\InterfaceDeclaration;
 use Microsoft\PhpParser\Node\Statement\NamespaceDefinition;
 use Microsoft\PhpParser\Node\Statement\NamespaceUseDeclaration;
@@ -28,9 +30,9 @@ use Phpactor\TextDocument\TextDocument;
 
 class TolerantClassFinder implements ClassFinder
 {
-    private $parser;
+    private Parser $parser;
 
-    public function __construct(Parser $parser = null)
+    public function __construct(?Parser $parser = null)
     {
         $this->parser = $parser ?: new Parser();
     }
@@ -47,7 +49,8 @@ class TolerantClassFinder implements ClassFinder
         return NamespacedClassReferences::fromNamespaceAndClassRefs($namespaceRef, $classRefs);
     }
 
-    private function resolveClassNames($source, NameImportTable $env, $ast): array
+    /** @return array<ClassReference> */
+    private function resolveClassNames(TextDocument $source, NameImportTable $env, SourceFileNode $ast): array
     {
         $classRefs = [];
         $nodes = $ast->getDescendantNodes();
@@ -55,6 +58,7 @@ class TolerantClassFinder implements ClassFinder
         foreach ($nodes as $node) {
             if (
                 $node instanceof ClassDeclaration ||
+                $node instanceof EnumDeclaration ||
                 $node instanceof InterfaceDeclaration ||
                 $node instanceof TraitDeclaration
             ) {
@@ -114,18 +118,23 @@ class TolerantClassFinder implements ClassFinder
             }
 
             // this is a fully qualified class name
+            $importedNameReference = null;
+            if ($env->isNameImported($qualifiedName)) {
+                $importedNameReference = $env->getImportedNameRefFor($qualifiedName);
+            }
+
             $classRefs[] = ClassReference::fromNameAndPosition(
                 $qualifiedName,
                 $resolvedClassName,
                 Position::fromStartAndEnd($node->getStartPosition(), $node->getEndPosition()),
-                $env->isNameImported($qualifiedName) ? $env->getImportedNameRefFor($qualifiedName) : ImportedNameReference::none()
+                $importedNameReference ?? ImportedNameReference::none()
             );
         }
 
         return $classRefs;
     }
 
-    private function getClassEnvironment(Namespace_ $namespace, SourceFileNode $node)
+    private function getClassEnvironment(Namespace_ $namespace, SourceFileNode $node): NameImportTable
     {
         $useImportRefs = [];
         foreach ($node->getChildNodes() as $childNode) {
@@ -139,19 +148,25 @@ class TolerantClassFinder implements ClassFinder
         return NameImportTable::fromImportedNameRefs($namespace, $useImportRefs);
     }
 
-    private function populateUseImportRefs(NamespaceUseDeclaration $useDeclaration, &$useImportRefs): void
+    /**
+     * @param array<ImportedNameReference> $useImportRefs
+     */
+    private function populateUseImportRefs(NamespaceUseDeclaration $useDeclaration, array &$useImportRefs): void
     {
         if (null === $useDeclaration->useClauses) {
             return;
         }
 
         foreach ($useDeclaration->useClauses->getElements() as $useClause) {
-            $importedName = ImportedName::fromString($useClause->namespaceName->getText());
+            /** @var NamespaceUseClause $useClause */
+            $importedName = ImportedName::fromString((string) $useClause->namespaceName->getText());
             $alias = $importedName;
 
-            if ($useClause->namespaceAliasingClause) {
+            /** @var NamespaceAliasingClause|null $aliasClause */
+            $aliasClause = $useClause->namespaceAliasingClause;
+            if ($useClause->namespaceAliasingClause !== null) {
                 $alias = $useClause->namespaceAliasingClause->name->getText($useDeclaration->getFileContents());
-                $importedName = $importedName->withAlias($alias);
+                $importedName = $importedName->withAlias((string) $alias);
             }
 
             $useImportRefs[] = ImportedNameReference::fromImportedNameAndPosition($importedName, Position::fromStartAndEnd(
@@ -170,7 +185,6 @@ class TolerantClassFinder implements ClassFinder
             return NamespaceReference::forRoot();
         }
 
-        /** @phpstan-ignore-next-line */
         if (null === $namespace->name || $namespace->name instanceof MissingToken) {
             return NamespaceReference::forRoot();
         }

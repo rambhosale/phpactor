@@ -111,7 +111,7 @@ class AssignmentExpressionResolver implements Resolver
         //       evaluate the variable (e.g. $this->$foobar);
         if ($memberNameNode instanceof Token) {
             $memberName = $memberNameNode->getText($leftOperand->getFileContents());
-        /** @phpstan-ignore-next-line */
+            /** @phpstan-ignore-next-line */
         } else {
             $memberType = $resolver->resolveNode($frame, $memberNameNode)->type();
 
@@ -135,33 +135,33 @@ class AssignmentExpressionResolver implements Resolver
         $frame->properties()->set(WorseVariable::fromSymbolContext($context));
     }
 
-    private function walkArrayCreation(Frame $frame, ArrayCreationExpression $leftOperand, NodeContext $symbolContext): void
+    private function walkArrayCreation(Frame $frame, ArrayCreationExpression $leftOperand, NodeContext $nodeContext): void
     {
         $list = $leftOperand->arrayElements;
         if (!$list instanceof ArrayElementList) {
             return;
         }
 
-        $this->walkArrayElements($list->children, $leftOperand, $symbolContext->type(), $frame);
+        $this->walkArrayElements($list->children, $leftOperand, $nodeContext->type(), $frame);
     }
 
-    private function walkList(Frame $frame, ListIntrinsicExpression $leftOperand, NodeContext $symbolContext): void
+    private function walkList(Frame $frame, ListIntrinsicExpression $leftOperand, NodeContext $nodeContext): void
     {
         $list = $leftOperand->listElements;
         if (!$list instanceof ListExpressionList) {
             return;
         }
 
-        $this->walkArrayElements($list->children, $leftOperand, $symbolContext->type(), $frame);
+        $this->walkArrayElements($list->children, $leftOperand, $nodeContext->type(), $frame);
     }
 
     private function walkSubscriptExpression(NodeContextResolver $resolver, Frame $frame, SubscriptExpression $leftOperand, NodeContext $rightContext): void
     {
         if ($leftOperand->postfixExpression instanceof Variable) {
-            foreach ($frame->locals()->byName($leftOperand->postfixExpression->getName()) as $variable) {
+            foreach ($frame->locals()->byName((string)$leftOperand->postfixExpression->getName()) as $variable) {
                 $type = $variable->type();
 
-                if (!$type instanceof ArrayLiteral) {
+                if (!$type instanceof ArrayType) {
                     return;
                 }
 
@@ -179,19 +179,29 @@ class AssignmentExpressionResolver implements Resolver
                         return;
                     }
 
+                    if ($type instanceof ArrayLiteral) {
+                        $frame->locals()->set(
+                            $variable->withType(
+                                $type->set($accessType->value(), $rightContext->type())
+                            )->withOffset($leftOperand->getStartPosition())
+                        );
+                    }
+                    continue;
+                }
+
+                // @phpstan-ignore-next-line TP lies
+                if ($rightContext->type() instanceof Literal) {
                     $frame->locals()->set(
                         $variable->withType(
-                            $type->set($accessType->value(), $rightContext->type())
+                            $type->add($rightContext->type())
                         )->withOffset($leftOperand->getStartPosition())
                     );
                     continue;
                 }
 
-                // array addition `$foo[] = `
-                // @phpstan-ignore-next-line TP lies
                 $frame->locals()->set(
                     $variable->withType(
-                        $type->add($rightContext->type())
+                        TypeFactory::array($rightContext->type())
                     )->withOffset($leftOperand->getStartPosition())
                 );
             }
@@ -263,7 +273,7 @@ class AssignmentExpressionResolver implements Resolver
 
 
             $variableContext = $variableContext->withType($this->offsetType($type, $index));
-            $frame->locals()->set(WorseVariable::fromSymbolContext($variableContext));
+            $frame->locals()->set(WorseVariable::fromSymbolContext($variableContext)->asAssignment());
         }
     }
 

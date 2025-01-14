@@ -3,7 +3,6 @@
 namespace Phpactor\Extension\LanguageServerBridge\Converter;
 
 use Phpactor\LanguageServerProtocol\Location as LspLocation;
-use Phpactor\LanguageServerProtocol\Range;
 use Phpactor\Extension\LanguageServerBridge\Converter\Exception\CouldNotLoadFileContents;
 use Phpactor\TextDocument\Exception\TextDocumentNotFound;
 use Phpactor\TextDocument\Location;
@@ -12,22 +11,22 @@ use Phpactor\TextDocument\TextDocumentLocator;
 
 class LocationConverter
 {
-    private TextDocumentLocator $locator;
-
-    public function __construct(TextDocumentLocator $locator)
+    public function __construct(private TextDocumentLocator $locator)
     {
-        $this->locator = $locator;
     }
 
+    /**
+     * @return list<LspLocation>
+     */
     public function toLspLocations(Locations $locations): array
     {
         $lspLocations = [];
         foreach ($locations as $location) {
             try {
                 $lspLocations[] = $this->toLspLocation($location);
-            } catch (TextDocumentNotFound $notFound) {
+            } catch (TextDocumentNotFound) {
                 continue;
-            } catch (CouldNotLoadFileContents $couldNotLoad) {
+            } catch (CouldNotLoadFileContents) {
                 continue;
             }
         }
@@ -38,11 +37,10 @@ class LocationConverter
     public function toLspLocation(Location $location): LspLocation
     {
         $textDocument = $this->locator->get($location->uri());
-        $position = PositionConverter::byteOffsetToPosition(
-            $location->offset(),
-            $textDocument->__toString()
-        );
 
-        return new LspLocation($location->uri()->__toString(), new Range($position, $position));
+        return new LspLocation(
+            $location->uri()->__toString(),
+            RangeConverter::toLspRange($location->range(), (string) $textDocument)
+        );
     }
 }

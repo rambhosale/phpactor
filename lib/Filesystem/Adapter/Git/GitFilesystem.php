@@ -17,9 +17,8 @@ class GitFilesystem extends SimpleFilesystem
 {
     private FilePath $path;
 
-    public function __construct($path, FileListProvider $fileListProvider = null)
+    public function __construct(FilePath $path, ?FileListProvider $fileListProvider = null)
     {
-        $path = FilePath::fromUnknown($path);
         parent::__construct($path, $fileListProvider);
         $this->path = $path;
 
@@ -48,9 +47,9 @@ class GitFilesystem extends SimpleFilesystem
         return FileList::fromIterator(new ArrayIterator($files));
     }
 
-    public function remove($path): void
+    public function remove(FilePath|string $path): void
     {
-        $path = FilePath::fromUnknown($path);
+        $path = FilePath::fromFilePathOrString($path);
         if (false === $this->trackedByGit($path)) {
             parent::remove($path);
             return;
@@ -64,10 +63,10 @@ class GitFilesystem extends SimpleFilesystem
         $this->exec(['rm', '-f', $path->path()]);
     }
 
-    public function move($srcPath, $destPath): void
+    public function move(FilePath|string $srcPath, FilePath|string $destPath): void
     {
-        $srcPath = FilePath::fromUnknown($srcPath);
-        $destPath = FilePath::fromUnknown($destPath);
+        $srcPath = FilePath::fromFilePathOrString($srcPath);
+        $destPath = FilePath::fromFilePathOrString($destPath);
 
         if (false === $this->trackedByGit($srcPath)) {
             parent::move($srcPath, $destPath);
@@ -81,10 +80,10 @@ class GitFilesystem extends SimpleFilesystem
         ]);
     }
 
-    public function copy($srcPath, $destPath): CopyReport
+    public function copy(FilePath|string $srcPath, FilePath|string $destPath): CopyReport
     {
-        $srcPath = FilePath::fromUnknown($srcPath);
-        $destPath = FilePath::fromUnknown($destPath);
+        $srcPath = FilePath::fromFilePathOrString($srcPath);
+        $destPath = FilePath::fromFilePathOrString($destPath);
         $list = parent::copy($srcPath, $destPath);
         $this->exec(['add', $destPath->__toString()]);
 
@@ -120,6 +119,6 @@ class GitFilesystem extends SimpleFilesystem
     {
         $out = $this->exec(['ls-files', (string) $file]);
 
-        return false === empty($out);
+        return !empty($out);
     }
 }

@@ -10,16 +10,10 @@ use Phpactor\WorseReflection\TypeUtil;
 class ArrayLiteral extends ArrayType implements Literal, Generalizable, ArrayAccessType
 {
     /**
-     * @var array<array-key,Type>
-     */
-    private array $typeMap;
-
-    /**
      * @param array<array-key,Type> $typeMap
      */
-    public function __construct(array $typeMap)
+    public function __construct(private array $typeMap)
     {
-        $this->typeMap = $typeMap;
         $this->keyType = TypeUtil::generalTypeFromTypes($this->iterableKeyTypes());
         $this->valueType = TypeUtil::generalTypeFromTypes(array_values($typeMap));
     }
@@ -67,8 +61,10 @@ class ArrayLiteral extends ArrayType implements Literal, Generalizable, ArrayAcc
         return range(0, count($this->typeMap) - 1) === array_keys($this->typeMap);
     }
 
-
-    public function value()
+    /**
+     * @return mixed[]
+     */
+    public function value(): array
     {
         return array_map(
             fn (Type $type) => TypeUtil::valueOrNull($type),
@@ -86,14 +82,10 @@ class ArrayLiteral extends ArrayType implements Literal, Generalizable, ArrayAcc
      */
     public function typeAtOffset($offset): Type
     {
-        if (isset($this->typeMap[$offset])) {
-            return $this->typeMap[$offset];
-        }
-
-        return new MissingType();
+        return $this->typeMap[$offset] ?? new MissingType();
     }
 
-    public function withValue($value)
+    public function withValue(mixed $value): self
     {
         return $this;
     }

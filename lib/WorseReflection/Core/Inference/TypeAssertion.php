@@ -14,32 +14,26 @@ final class TypeAssertion
 
     private string $name;
 
-    /**
-     * @var self::VARIABLE_TYPE_*
-     */
-    private string $variableType;
-
-    private ?Type $classType;
-
     private Closure $true;
 
     private Closure $false;
 
     private bool $polarity = true;
 
-    private int $offset;
-
     /**
      * @param self::VARIABLE_TYPE_* $variableType
      */
-    private function __construct(string $variableType, string $name, int $offset, Closure $true, Closure $false, Type $classType = null)
-    {
+    private function __construct(
+        private string $variableType,
+        string $name,
+        private int $offset,
+        Closure $true,
+        Closure $false,
+        private ?Type $classType = null
+    ) {
         $this->name = ltrim($name, '$');
-        $this->variableType = $variableType;
-        $this->classType = $classType;
         $this->true = $true;
         $this->false = $false;
-        $this->offset = $offset;
     }
 
     public function __toString()
@@ -68,7 +62,7 @@ final class TypeAssertion
         if ($context->symbol()->symbolType() === Symbol::PROPERTY) {
             return TypeAssertion::property(
                 $context->symbol()->name(),
-                $context->symbol()->position()->start(),
+                $context->symbol()->position()->start()->toInt(),
                 $true,
                 $false,
                 $context->containerType(),
@@ -76,7 +70,7 @@ final class TypeAssertion
         }
 
         if ($context->symbol()->symbolType() === Symbol::VARIABLE) {
-            return TypeAssertion::variable($context->symbol()->name(), $context->symbol()->position()->start(), $true, $false);
+            return TypeAssertion::variable($context->symbol()->name(), $context->symbol()->position()->start()->toInt(), $true, $false);
         }
 
         throw new RuntimeException(sprintf(

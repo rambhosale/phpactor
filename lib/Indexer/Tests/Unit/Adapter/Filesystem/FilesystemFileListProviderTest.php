@@ -2,7 +2,9 @@
 
 namespace Phpactor\Indexer\Tests\Unit\Adapter\Filesystem;
 
+use Prophecy\PhpUnit\ProphecyTrait;
 use Phpactor\Filesystem\Adapter\Simple\SimpleFilesystem;
+use Phpactor\Filesystem\Domain\FilePath;
 use Phpactor\Indexer\Adapter\Filesystem\FilesystemFileListProvider;
 use Phpactor\Indexer\Adapter\Php\InMemory\InMemoryIndex;
 use Phpactor\Indexer\Model\Index;
@@ -11,7 +13,7 @@ use Prophecy\Prophecy\ObjectProphecy;
 
 class FilesystemFileListProviderTest extends IntegrationTestCase
 {
-    use \Prophecy\PhpUnit\ProphecyTrait;
+    use ProphecyTrait;
 
     private FilesystemFileListProvider $provider;
 
@@ -24,7 +26,7 @@ class FilesystemFileListProviderTest extends IntegrationTestCase
 
     protected function setUp(): void
     {
-        $this->filesystem = new SimpleFilesystem($this->workspace()->path());
+        $this->filesystem = new SimpleFilesystem(FilePath::fromString($this->workspace()->path()));
         $this->provider = new FilesystemFileListProvider($this->filesystem);
         $this->workspace()->reset();
         $this->index = $this->prophesize(Index::class);

@@ -1,20 +1,20 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace Phpactor\FilePathResolver\Expander;
 
 use Closure;
 use Phpactor\FilePathResolver\Expander;
-use RuntimeException;
 
 class CallbackExpander implements Expander
 {
-    private string $tokenName;
-
+    /** @var Closure():string */
     private Closure $callback;
 
-    public function __construct(string $tokenName, Closure $callback)
+    /**
+     * @param Closure():string $callback
+    */
+    public function __construct(private string $tokenName, Closure $callback)
     {
-        $this->tokenName = $tokenName;
         $this->callback = $callback;
     }
 
@@ -26,15 +26,6 @@ class CallbackExpander implements Expander
     public function replacementValue(): string
     {
         $closure = $this->callback;
-        $return = $closure();
-
-        if (!is_string($return)) {
-            throw new RuntimeException(sprintf(
-                'Closure in callback expander must return a string, got "%s"',
-                gettype($return)
-            ));
-        }
-
-        return $return;
+        return $closure();
     }
 }

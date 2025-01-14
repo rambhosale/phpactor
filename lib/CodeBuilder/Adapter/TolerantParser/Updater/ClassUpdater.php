@@ -21,6 +21,7 @@ class ClassUpdater extends ClassLikeUpdater
             return;
         }
 
+        $this->updateDocblock($edits, $classPrototype, $classNode);
         $this->updateExtends($edits, $classPrototype, $classNode);
         $this->updateImplements($edits, $classPrototype, $classNode);
         $this->updateConstants($edits, $classPrototype, $classNode->classMembers);
@@ -47,7 +48,6 @@ class ClassUpdater extends ClassLikeUpdater
             }
 
             if ($memberNode instanceof ClassConstDeclaration) {
-                /** @var ConstDeclaration $memberNode */
                 foreach ($memberNode->constElements->getElements() as $variable) {
                     $existingConstantNames[] = $variable->getName();
                 }
@@ -62,21 +62,18 @@ class ClassUpdater extends ClassLikeUpdater
 
             $edits->after(
                 $lastConstant,
-                PHP_EOL . $edits->indent($this->renderer->render($constant), 1)
+                "\n" . $edits->indent($this->renderer->render($constant), 1)
             );
 
             if ($classPrototype->constants()->isLast($constant) && (
                 $nextMember instanceof MethodDeclaration ||
                 $nextMember instanceof PropertyDeclaration
             )) {
-                $edits->after($lastConstant, PHP_EOL);
+                $edits->after($lastConstant, "\n");
             }
         }
     }
 
-    /**
-     * @return Node[]
-     */
     protected function memberDeclarations(Node $node): array
     {
         return $node->classMemberDeclarations;

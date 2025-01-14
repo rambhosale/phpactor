@@ -2,6 +2,7 @@
 
 namespace Phpactor\Extension\LanguageServerCompletion\Handler;
 
+use function Amp\call;
 use Amp\Promise;
 use Phpactor\Extension\LanguageServerBridge\Converter\PositionConverter;
 use Phpactor\LanguageServerProtocol\Position;
@@ -18,14 +19,8 @@ use Phpactor\TextDocument\TextDocumentBuilder;
 
 class SignatureHelpHandler implements Handler, CanRegisterCapabilities
 {
-    private Workspace $workspace;
-
-    private SignatureHelper $helper;
-
-    public function __construct(Workspace $workspace, SignatureHelper $helper)
+    public function __construct(private Workspace $workspace, private SignatureHelper $helper)
     {
-        $this->workspace = $workspace;
-        $this->helper = $helper;
     }
 
 
@@ -40,7 +35,7 @@ class SignatureHelpHandler implements Handler, CanRegisterCapabilities
         TextDocumentIdentifier $textDocument,
         Position $position
     ): Promise {
-        return \Amp\call(function () use ($textDocument, $position) {
+        return call(function () use ($textDocument, $position) {
             $textDocument = $this->workspace->get($textDocument->uri);
 
             $languageId = $textDocument->languageId ?: 'php';
@@ -50,7 +45,7 @@ class SignatureHelpHandler implements Handler, CanRegisterCapabilities
                     TextDocumentBuilder::create($textDocument->text)->language($languageId)->uri($textDocument->uri)->build(),
                     PositionConverter::positionToByteOffset($position, $textDocument->text)
                 ));
-            } catch (CouldNotHelpWithSignature $couldNotHelp) {
+            } catch (CouldNotHelpWithSignature) {
                 return null;
             }
         });

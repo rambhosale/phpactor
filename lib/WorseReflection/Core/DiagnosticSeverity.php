@@ -12,17 +12,10 @@ final class DiagnosticSeverity
     public const HINT = 4;
 
     /**
-     * @var self::*
-     */
-    private $level;
-
-    /**
      * @param self::* $level
      */
-    private function __construct(int $level)
+    private function __construct(private int $level)
     {
-        $this->level = $level;
-
         $validLevels = [
             self::INFORMATION,
             self::WARNING,
@@ -43,9 +36,19 @@ final class DiagnosticSeverity
         return new self(self::ERROR);
     }
 
+    public static function INFORMATION(): self
+    {
+        return new self(self::INFORMATION);
+    }
+
     public static function WARNING(): self
     {
         return new self(self::WARNING);
+    }
+
+    public static function HINT(): self
+    {
+        return new self(self::HINT);
     }
 
     public function toString(): string
@@ -70,5 +73,10 @@ final class DiagnosticSeverity
     public function isWarning(): bool
     {
         return $this->level === self::WARNING;
+    }
+
+    public function isHint(): bool
+    {
+        return $this->level === self::HINT;
     }
 }

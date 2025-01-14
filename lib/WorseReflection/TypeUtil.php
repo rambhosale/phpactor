@@ -5,6 +5,7 @@ namespace Phpactor\WorseReflection;
 use Phpactor\WorseReflection\Core\Trinary;
 use Phpactor\WorseReflection\Core\Type;
 use Phpactor\WorseReflection\Core\TypeFactory;
+use Phpactor\WorseReflection\Core\Type\AggregateType;
 use Phpactor\WorseReflection\Core\Type\BooleanLiteralType;
 use Phpactor\WorseReflection\Core\Type\BooleanType;
 use Phpactor\WorseReflection\Core\Type\ClassType;
@@ -14,6 +15,7 @@ use Phpactor\WorseReflection\Core\Type\MissingType;
 use Phpactor\WorseReflection\Core\Type\MixedType;
 use Phpactor\WorseReflection\Core\Type\NullType;
 use Phpactor\WorseReflection\Core\Type\NumericType;
+use Phpactor\WorseReflection\Core\Type\ScalarType;
 
 class TypeUtil
 {
@@ -61,7 +63,10 @@ class TypeUtil
 
     public static function toNumber(Type $type): NumericType
     {
-        if ($type instanceof Literal) {
+        if ($type instanceof NumericType) {
+            return $type;
+        }
+        if ($type instanceof Literal && $type instanceof ScalarType) {
             $value = (string)$type->value();
             return TypeFactory::fromNumericString($value);
         }
@@ -110,5 +115,21 @@ class TypeUtil
         }
 
         return $valueType ?: new MissingType();
+    }
+
+    public static function contains(string $string, Type $type): bool
+    {
+        if ($type instanceof $string) {
+            return true;
+        }
+        if ($type instanceof AggregateType) {
+            foreach ($type->expandTypes() as $type) {
+                if ($type instanceof $string) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }

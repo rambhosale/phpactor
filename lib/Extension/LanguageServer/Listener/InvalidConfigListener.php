@@ -12,17 +12,13 @@ use Psr\EventDispatcher\ListenerProviderInterface;
 
 class InvalidConfigListener implements ListenerProviderInterface
 {
-    private ClientApi $clientApi;
-
-    private ResolverErrors $errors;
-
-    public function __construct(ClientApi $clientApi, ResolverErrors $errors)
+    public function __construct(private ClientApi $clientApi, private ResolverErrors $errors)
     {
-        $this->clientApi = $clientApi;
-        $this->errors = $errors;
     }
 
-
+    /**
+     * @return iterable<callable>
+     */
     public function getListenersForEvent(object $event): iterable
     {
         if ($event instanceof Initialized) {

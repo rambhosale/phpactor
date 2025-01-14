@@ -9,14 +9,8 @@ use RuntimeException;
 
 final class SourceCode implements TextDocument
 {
-    private string $code;
-
-    private TextDocumentUri $path;
-
-    private function __construct(string $code, TextDocumentUri $path)
+    private function __construct(private string $code, private TextDocumentUri $uri)
     {
-        $this->code = $code;
-        $this->path = $path;
     }
 
     public function __toString(): string
@@ -29,14 +23,14 @@ final class SourceCode implements TextDocument
         return new self($code, TextDocumentUri::fromString('untitled:Untitled'));
     }
 
-    public static function fromStringAndPath(string $code, string $path = null): SourceCode
+    public static function fromStringAndPath(string $code, ?string $path = null): SourceCode
     {
         return new self($code, TextDocumentUri::fromString($path));
     }
 
     public function withSource(string $code): SourceCode
     {
-        return new self($code, $this->path);
+        return new self($code, $this->uri);
     }
 
     public function withPath(string $path): SourceCode
@@ -46,7 +40,7 @@ final class SourceCode implements TextDocument
 
     public function path(): string
     {
-        return $this->path->path();
+        return $this->uri->path();
     }
 
     public function extractSelection(int $offsetStart, int $offsetEnd): string
@@ -83,7 +77,7 @@ final class SourceCode implements TextDocument
 
     public function uri(): TextDocumentUri
     {
-        return $this->path;
+        return $this->uri;
     }
 
     public function language(): TextDocumentLanguage
@@ -98,6 +92,16 @@ final class SourceCode implements TextDocument
      */
     public static function fromTextDocument(TextDocument $textDocument): self
     {
+        if (null === $textDocument->uri()) {
+            throw new RuntimeException(
+                'Cannot create source code from text document with no URI'
+            );
+        }
         return new self($textDocument->__toString(), $textDocument->uri());
+    }
+
+    public function uriOrThrow(): TextDocumentUri
+    {
+        return $this->uri;
     }
 }

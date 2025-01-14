@@ -15,18 +15,15 @@ use Symfony\Component\Filesystem\Path;
 
 class SimpleFilesystem implements Filesystem
 {
-    private FilePath $path;
-
     private FileListProvider $fileListProvider;
 
     private SymfonyFilesystem $filesystem;
 
-    /**
-     * @param FilePath|string $path
-     */
-    public function __construct($path, ?FileListProvider $fileListProvider = null, ?SymfonyFilesystem $filesystem = null)
-    {
-        $this->path = FilePath::fromUnknown($path);
+    public function __construct(
+        private FilePath $path,
+        ?FileListProvider $fileListProvider = null,
+        ?SymfonyFilesystem $filesystem = null
+    ) {
         $this->fileListProvider = $fileListProvider ?: new SimpleFileListProvider($this->path);
         $this->filesystem = $filesystem ?: new SymfonyFilesystem();
     }
@@ -36,25 +33,25 @@ class SimpleFilesystem implements Filesystem
         return $this->fileListProvider->fileList();
     }
 
-    public function remove($path): void
+    public function remove(FilePath|string $path): void
     {
-        $path = FilePath::fromUnknown($path);
+        $path = FilePath::fromFilePathOrString($path);
         $this->filesystem->remove($path);
     }
 
-    public function move($srcLocation, $destPath): void
+    public function move(FilePath|string $srcLocation, FilePath|string $destPath): void
     {
-        $srcLocation = FilePath::fromUnknown($srcLocation);
-        $destPath = FilePath::fromUnknown($destPath);
+        $srcLocation = FilePath::fromFilePathOrString($srcLocation);
+        $destPath = FilePath::fromFilePathOrString($destPath);
 
         $this->makeDirectoryIfNotExists((string) $destPath);
         $this->filesystem->rename($srcLocation->__toString(), $destPath->__toString());
     }
 
-    public function copy($srcLocation, $destPath): CopyReport
+    public function copy(FilePath|string $srcLocation, FilePath|string $destPath): CopyReport
     {
-        $srcLocation = FilePath::fromUnknown($srcLocation);
-        $destPath = FilePath::fromUnknown($destPath);
+        $srcLocation = FilePath::fromFilePathOrString($srcLocation);
+        $destPath = FilePath::fromFilePathOrString($destPath);
 
         if ($srcLocation->isDirectory()) {
             return $this->copyDirectory($srcLocation, $destPath);
@@ -78,9 +75,9 @@ class SimpleFilesystem implements Filesystem
         return FilePath::fromString($path);
     }
 
-    public function getContents($path): string
+    public function getContents(FilePath|string $path): string
     {
-        $path = FilePath::fromUnknown($path);
+        $path = FilePath::fromFilePathOrString($path);
         $contents = file_get_contents($path->path());
 
         if (false === $contents) {
@@ -90,15 +87,15 @@ class SimpleFilesystem implements Filesystem
         return $contents;
     }
 
-    public function writeContents($path, string $contents): void
+    public function writeContents(FilePath|string $path, string $contents): void
     {
-        $path = FilePath::fromUnknown($path);
+        $path = FilePath::fromFilePathOrString($path);
         file_put_contents($path->path(), $contents);
     }
 
-    public function exists($path): bool
+    public function exists(FilePath|string $path): bool
     {
-        $path = FilePath::fromUnknown($path);
+        $path = FilePath::fromFilePathOrString($path);
         return file_exists($path);
     }
 

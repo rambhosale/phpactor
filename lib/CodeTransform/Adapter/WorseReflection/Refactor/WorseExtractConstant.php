@@ -23,28 +23,25 @@ use Phpactor\WorseReflection\TypeUtil;
 
 class WorseExtractConstant implements ExtractConstant
 {
-    private Reflector $reflector;
-
-    private Updater $updater;
-
     private Parser $parser;
 
-    public function __construct(Reflector $reflector, Updater $updater, Parser $parser = null)
-    {
-        $this->reflector = $reflector;
-        $this->updater = $updater;
+    public function __construct(
+        private Reflector $reflector,
+        private Updater $updater,
+        ?Parser $parser = null
+    ) {
         $this->parser = $parser ?: new Parser();
     }
 
     public function extractConstant(SourceCode $sourceCode, int $offset, string $constantName): TextDocumentEdits
     {
         $symbolInformation = $this->reflector
-            ->reflectOffset($sourceCode->__toString(), $offset)
-            ->symbolContext();
+            ->reflectOffset($sourceCode, $offset)
+            ->nodeContext();
 
         $textEdits = $this->addConstant($sourceCode, $symbolInformation, $constantName);
         $textEdits = $textEdits->merge($this->replaceValues($sourceCode, $offset, $constantName));
-        return new TextDocumentEdits(TextDocumentUri::fromString($sourceCode->path()), $textEdits);
+        return new TextDocumentEdits(TextDocumentUri::fromString($sourceCode->uri()->path()), $textEdits);
     }
 
     public function canExtractConstant(SourceCode $source, int $offset): bool
@@ -53,7 +50,7 @@ class WorseExtractConstant implements ExtractConstant
         $targetNode = $node->getDescendantNodeAtPosition($offset);
         try {
             $this->getComparableValue($targetNode);
-        } catch (TransformException $e) {
+        } catch (TransformException) {
             return false;
         }
         return true;
@@ -64,10 +61,20 @@ class WorseExtractConstant implements ExtractConstant
         $symbol = $symbolInformation->symbol();
 
         $builder = SourceCodeBuilder::create();
-        $classType = $symbolInformation->containerType()->classNamedTypes()->firstOrNull();
+        $classType = $symbolInformation->containerType()->expandTypes()->classLike()->firstOrNull();
 
         if (!$classType) {
-            throw new TransformException(sprintf('Node does not belong to a class'));
+            throw new TransformException('Node does not belong to a class');
+        }
+
+        if ($classType->members()->constants()->has($constantName)) {
+            throw new TransformException(
+                sprintf(
+                    'Constant with name %s already exists on class %s',
+                    $constantName,
+                    $classType->name()->short()
+                )
+            );
         }
 
         $builder->namespace($classType->name()->namespace());

@@ -11,11 +11,8 @@ use Psr\EventDispatcher\ListenerProviderInterface;
 
 class IndexerListener implements ListenerProviderInterface
 {
-    private ServiceManager $manager;
-
-    public function __construct(ServiceManager $manager)
+    public function __construct(private ServiceManager $manager)
     {
-        $this->manager = $manager;
     }
 
 
@@ -34,9 +31,11 @@ class IndexerListener implements ListenerProviderInterface
         }
 
         if ($event instanceof WillShutdown) {
-            if ($this->manager->isRunning(IndexerHandler::SERVICE_INDEXER)) {
-                $this->manager->stop(IndexerHandler::SERVICE_INDEXER);
-            }
+            yield function (): void {
+                if ($this->manager->isRunning(IndexerHandler::SERVICE_INDEXER)) {
+                    $this->manager->stop(IndexerHandler::SERVICE_INDEXER);
+                }
+            };
         }
     }
 }

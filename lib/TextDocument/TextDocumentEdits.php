@@ -10,15 +10,16 @@ use IteratorAggregate;
  */
 class TextDocumentEdits implements IteratorAggregate
 {
-    private TextEdits $textEdits;
-
-    private TextDocumentUri $uri;
-
-
-    public function __construct(TextDocumentUri $uri, TextEdits $textEdits)
+    public function __construct(private TextDocumentUri $uri, private TextEdits $textEdits)
     {
-        $this->textEdits = $textEdits;
-        $this->uri = $uri;
+    }
+
+    public static function fromTextDocument(TextDocument $textDocument, TextEdits $edits): self
+    {
+        return new self(
+            TextDocumentUri::fromString($textDocument->uriOrThrow()),
+            $edits
+        );
     }
 
     public function uri(): TextDocumentUri

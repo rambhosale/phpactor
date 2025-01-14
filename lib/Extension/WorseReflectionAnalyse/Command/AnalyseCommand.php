@@ -3,6 +3,7 @@
 namespace Phpactor\Extension\WorseReflectionAnalyse\Command;
 
 use Phpactor\Extension\WorseReflectionAnalyse\Model\Analyser;
+use Phpactor\WorseReflection\Core\Diagnostic;
 use Phpactor\WorseReflection\Core\Diagnostics;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\ProgressBar;
@@ -18,13 +19,9 @@ class AnalyseCommand extends Command
     const OPT_IGNORE_FAILURE = 'ignore-failure';
     const OPT_FORMAT = 'format';
 
-    private Analyser $analyser;
-
-    public function __construct(Analyser $analyser)
+    public function __construct(private Analyser $analyser)
     {
         parent::__construct();
-
-        $this->analyser = $analyser;
     }
 
     public function configure(): void
@@ -40,7 +37,7 @@ class AnalyseCommand extends Command
         $start = (float)microtime(true);
 
         /**
-         * @var array<string,Diagnostics> $results
+         * @var array<string,Diagnostics<Diagnostic>> $results
          */
         $results = [];
         $path = $input->getArgument(self::ARG_PATH);
@@ -63,13 +60,10 @@ class AnalyseCommand extends Command
         $output->writeln('');
         $output->writeln('');
 
-        switch ($input->getOption(self::OPT_FORMAT)) {
-            case 'json':
-                $this->renderJson($output, $results);
-                break;
-            default:
-                $this->renderTable($output, $results, $start);
-        }
+        match ($input->getOption(self::OPT_FORMAT)) {
+            'json' => $this->renderJson($output, $results),
+            default => $this->renderTable($output, $results, $start),
+        };
 
         if ($input->getOption(self::OPT_IGNORE_FAILURE)) {
             return 0;
@@ -79,7 +73,7 @@ class AnalyseCommand extends Command
     }
 
     /**
-     * @param array<string,Diagnostics> $results
+     * @param array<string,Diagnostics<Diagnostic>> $results
      */
     private function renderTable(OutputInterface $output, array $results, float $start): void
     {
@@ -112,7 +106,7 @@ class AnalyseCommand extends Command
     }
 
     /**
-     * @param array<string,Diagnostics> $results
+     * @param array<string,Diagnostics<Diagnostic>> $results
      */
     private function renderJson(OutputInterface $output, array $results): void
     {

@@ -15,16 +15,13 @@ use Phpactor\TextDocument\TextDocument;
 
 class FeatureStepCompletor implements Completor
 {
-    private StepGenerator $generator;
-
-    private StepParser $parser;
-
     private StepScorer $stepSorter;
 
-    public function __construct(StepGenerator $generator, StepParser $parser, StepScorer $stepSorter = null)
-    {
-        $this->generator = $generator;
-        $this->parser = $parser;
+    public function __construct(
+        private StepGenerator $generator,
+        private StepParser $parser,
+        ?StepScorer $stepSorter = null
+    ) {
         $this->stepSorter = $stepSorter ?: new StepScorer();
     }
 
@@ -34,7 +31,7 @@ class FeatureStepCompletor implements Completor
         $currentLine = $this->lineForOffset($source->__toString(), $byteOffset->toInt());
         $parsed = $this->parser->parseSteps($currentLine);
 
-        if (empty($parsed)) {
+        if ($parsed === []) {
             return false;
         }
         $partial = $parsed[0];

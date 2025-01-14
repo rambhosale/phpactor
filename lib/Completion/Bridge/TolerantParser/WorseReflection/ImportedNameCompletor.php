@@ -4,6 +4,7 @@ namespace Phpactor\Completion\Bridge\TolerantParser\WorseReflection;
 
 use Generator;
 use Microsoft\PhpParser\Node;
+use Microsoft\PhpParser\Node\QualifiedName;
 use Microsoft\PhpParser\ResolvedName;
 use Phpactor\Completion\Bridge\TolerantParser\CompletionContext;
 use Phpactor\Completion\Bridge\TolerantParser\Qualifier\ClassQualifier;
@@ -11,6 +12,7 @@ use Phpactor\Completion\Bridge\TolerantParser\TolerantCompletor;
 use Phpactor\Completion\Bridge\TolerantParser\TolerantQualifiable;
 use Phpactor\Completion\Bridge\TolerantParser\TolerantQualifier;
 use Phpactor\Completion\Core\Suggestion;
+use Phpactor\Name\NameUtil;
 use Phpactor\TextDocument\ByteOffset;
 use Phpactor\TextDocument\TextDocument;
 
@@ -31,6 +33,10 @@ class ImportedNameCompletor implements TolerantCompletor, TolerantQualifiable
             return true;
         }
 
+        if ($node instanceof QualifiedName && NameUtil::isQualified($node)) {
+            return true;
+        }
+
         $namespaceImports = $node->getImportTablesForCurrentScope()[0];
 
         /** @var ResolvedName $resolvedName */
@@ -40,6 +46,7 @@ class ImportedNameCompletor implements TolerantCompletor, TolerantQualifiable
                 [
                     'type' => Suggestion::TYPE_CLASS,
                     'short_description' => sprintf('%s', $resolvedName->__toString()),
+                    'fqn' => $resolvedName->__toString(),
                 ]
             );
         }

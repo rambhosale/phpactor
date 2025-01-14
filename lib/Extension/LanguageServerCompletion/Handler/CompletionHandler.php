@@ -35,37 +35,19 @@ use function Amp\call;
 
 class CompletionHandler implements Handler, CanRegisterCapabilities
 {
-    private TypedCompletorRegistry $registry;
-
-    private bool $provideTextEdit;
-
-    private SuggestionNameFormatter $suggestionNameFormatter;
-
-    private Workspace $workspace;
-
-    private bool $supportSnippets;
-
-    private NameImporter $nameImporter;
-
     /**
      * @var array<int,Closure(CompletionItem): CompletionItem>
      */
     private array $resolve = [];
 
     public function __construct(
-        Workspace $workspace,
-        TypedCompletorRegistry $registry,
-        SuggestionNameFormatter $suggestionNameFormatter,
-        NameImporter $nameImporter,
-        bool $supportSnippets,
-        bool $provideTextEdit = false
+        private Workspace $workspace,
+        private TypedCompletorRegistry $registry,
+        private SuggestionNameFormatter $suggestionNameFormatter,
+        private NameImporter $nameImporter,
+        private bool $supportSnippets,
+        private bool $provideTextEdit = false
     ) {
-        $this->registry = $registry;
-        $this->provideTextEdit = $provideTextEdit;
-        $this->workspace = $workspace;
-        $this->suggestionNameFormatter = $suggestionNameFormatter;
-        $this->nameImporter = $nameImporter;
-        $this->supportSnippets = $supportSnippets;
     }
 
     public function methods(): array
@@ -132,7 +114,7 @@ class CompletionHandler implements Handler, CanRegisterCapabilities
 
                 try {
                     $token->throwIfRequested();
-                } catch (CancelledException $cancellation) {
+                } catch (CancelledException) {
                     $this->resolve = [];
                     $isIncomplete = true;
                     break;
@@ -152,10 +134,19 @@ class CompletionHandler implements Handler, CanRegisterCapabilities
      */
     public function resolveItem(RequestMessage $request): Promise
     {
+        /** @phpstan-ignore-next-line */
         return call(function () use ($request) {
+            /** @phpstan-ignore-next-line */
             $item = CompletionItem::fromArray($request->params);
-            $item = $this->resolve[$item->data]($item);
-            return $item;
+
+            if (!(is_string($item->data) || is_int($item->data)) || !array_key_exists($item->data, $this->resolve)) {
+                return $item;
+            }
+            /** @phpstan-ignore-next-line - shouldn't happen but playing safe */
+            if (null === $this->resolve[$item->data]) {
+                return $item;
+            }
+            return $this->resolve[$item->data]($item);
         });
     }
 
@@ -165,10 +156,12 @@ class CompletionHandler implements Handler, CanRegisterCapabilities
             ':',
             '>',
             '$',
+            '[',
             '@',
             '(',
             '\'',
-            '"'
+            '"',
+            '\\'
         ]);
         $capabilities->signatureHelpProvider = new SignatureHelpOptions(['(', ',']);
         $capabilities->completionProvider->resolveProvider = true;
@@ -255,7 +248,7 @@ class CompletionHandler implements Handler, CanRegisterCapabilities
     private function formatShortDescription(Suggestion $suggestion): string
     {
         $prefix = '';
-        if ($suggestion->classImport()) {
+        if ($suggestion->nameImport()) {
             $prefix = '↓ ';
         }
 

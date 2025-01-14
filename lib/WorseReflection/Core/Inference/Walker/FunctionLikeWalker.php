@@ -5,6 +5,8 @@ namespace Phpactor\WorseReflection\Core\Inference\Walker;
 use Microsoft\PhpParser\MissingToken;
 use Microsoft\PhpParser\Node;
 use Microsoft\PhpParser\Node\Expression\ArrowFunctionCreationExpression;
+use Microsoft\PhpParser\Node\Expression\ObjectCreationExpression;
+use Microsoft\PhpParser\Node\Statement\EnumDeclaration;
 use Microsoft\PhpParser\TokenKind;
 use Phpactor\WorseReflection\Core\Inference\FrameResolver;
 use Phpactor\WorseReflection\Core\Inference\Frame;
@@ -19,7 +21,6 @@ use Microsoft\PhpParser\Node\Expression\AnonymousFunctionCreationExpression;
 use Microsoft\PhpParser\Node\MethodDeclaration;
 use Microsoft\PhpParser\Node\Statement\FunctionDeclaration;
 use Microsoft\PhpParser\Node\Parameter;
-use Microsoft\PhpParser\Token;
 use Phpactor\WorseReflection\Core\Inference\Walker;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionMember;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionProperty;
@@ -48,7 +49,7 @@ class FunctionLikeWalker implements Walker
         );
 
         if (!$node instanceof ArrowFunctionCreationExpression) {
-            $frame = $frame->new($node->getNodeKindName() . '#' . $this->functionName($node));
+            $frame = $frame->new();
         }
 
         $this->walkFunctionLike($resolver, $frame, $node);
@@ -67,11 +68,16 @@ class FunctionLikeWalker implements Walker
     private function walkFunctionLike(FrameResolver $resolver, Frame $frame, FunctionLike $node): void
     {
         $namespace = $node->getNamespaceDefinition();
-        $classNode = $node->getFirstAncestor(
-            ClassDeclaration::class,
-            InterfaceDeclaration::class,
-            TraitDeclaration::class
-        );
+        do {
+            // If we are here we found a normal ObjectCreationExpression like: new A(); and this is not useful and we continue traversing
+            $classNode = ($classNode ?? $node)->getFirstAncestor(
+                ClassDeclaration::class,
+                InterfaceDeclaration::class,
+                TraitDeclaration::class,
+                EnumDeclaration::class,
+                ObjectCreationExpression::class, // For Inline classes
+            );
+        } while ($classNode instanceof ObjectCreationExpression && $classNode->classTypeDesignator instanceof Node);
 
         if ($node instanceof AnonymousFunctionCreationExpression) {
             $this->addAnonymousImports($frame, $node);
@@ -84,7 +90,7 @@ class FunctionLikeWalker implements Walker
         }
 
         // works for both closure and class method (we currently ignore binding)
-        if ($classNode) {
+        if ($classNode !== null) {
             $classType = $resolver->resolveNode($frame, $classNode)->type();
             $this->addClassContext($node, $classType, $frame);
         }
@@ -97,7 +103,7 @@ class FunctionLikeWalker implements Walker
         foreach ($node->parameters->getElements() as $parameterNode) {
             $parameterName = $parameterNode->variableName->getText($node->getFileContents());
 
-            $symbolContext = $resolver->resolveNode($frame, $parameterNode);
+            $nodeContext = $resolver->resolveNode($frame, $parameterNode);
 
             $context = NodeContextFactory::create(
                 (string)$parameterName,
@@ -105,11 +111,11 @@ class FunctionLikeWalker implements Walker
                 $parameterNode->getEndPosition(),
                 [
                     'symbol_type' => Symbol::VARIABLE,
-                    'type' => $symbolContext->type(),
+                    'type' => $nodeContext->type(),
                 ]
             );
 
-            $frame->locals()->set(Variable::fromSymbolContext($context));
+            $frame->locals()->set(Variable::fromSymbolContext($context)->asDefinition());
         }
     }
 
@@ -122,6 +128,9 @@ class FunctionLikeWalker implements Walker
         }
 
         $parentFrame = $frame->parent();
+        if (null === $parentFrame) {
+            return;
+        }
         $parentVars = $parentFrame->locals()->lessThanOrEqualTo($node->getStartPosition());
 
         if (null === $useClause->useVariableNameList) {
@@ -158,29 +167,8 @@ class FunctionLikeWalker implements Walker
             $variableContext = $variableContext
                 ->withType($variable->type());
 
-            $frame->locals()->set(Variable::fromSymbolContext($variableContext));
+            $frame->locals()->set(Variable::fromSymbolContext($variableContext)->asDefinition());
         }
-    }
-
-    private function functionName(FunctionLike $node): string
-    {
-        if ($node instanceof MethodDeclaration) {
-            return (string)$node->getName();
-        }
-
-        if ($node instanceof FunctionDeclaration) {
-            return array_reduce($node->getNameParts(), function ($accumulator, Token $part) {
-                return $accumulator
-                    . '\\' .
-                    $part->getText();
-            }, '');
-        }
-
-        if ($node instanceof AnonymousFunctionCreationExpression) {
-            return '<anonymous>';
-        }
-
-        return '<unknown>';
     }
 
     private function addClassContext(Node $node, Type $classType, Frame $frame): void
@@ -196,7 +184,7 @@ class FunctionLikeWalker implements Walker
         );
 
         // add this and self
-        $frame->locals()->set(Variable::fromSymbolContext($context));
+        $frame->locals()->set(Variable::fromSymbolContext($context)->asDefinition());
 
         if (!$classType instanceof ReflectedClassType) {
             return;
@@ -207,7 +195,7 @@ class FunctionLikeWalker implements Walker
         }
         foreach ($reflection->members()->byMemberType(ReflectionMember::TYPE_PROPERTY) as $property) {
             assert($property instanceof ReflectionProperty);
-            $frame->properties()->set(new Variable($property->name(), $property->position()->start(), $property->inferredType(), $classType));
+            $frame->properties()->set(new Variable($property->name(), $property->position()->start()->toInt(), $property->inferredType(), $classType));
         }
     }
 }

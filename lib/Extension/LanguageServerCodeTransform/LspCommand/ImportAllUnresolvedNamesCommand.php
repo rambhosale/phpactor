@@ -17,24 +17,12 @@ class ImportAllUnresolvedNamesCommand implements Command
 {
     public const NAME = 'import_all_unresolved_names';
 
-    private CandidateFinder $candidateFinder;
-
-    private Workspace $workspace;
-
-    private ClientApi $client;
-
-    private ImportNameCommand $importName;
-
     public function __construct(
-        CandidateFinder $candidateFinder,
-        Workspace $workspace,
-        ImportNameCommand $importName,
-        ClientApi $client
+        private CandidateFinder $candidateFinder,
+        private Workspace $workspace,
+        private ImportNameCommand $importName,
+        private ClientApi $client
     ) {
-        $this->candidateFinder = $candidateFinder;
-        $this->workspace = $workspace;
-        $this->client = $client;
-        $this->importName = $importName;
     }
 
     /**
@@ -45,7 +33,7 @@ class ImportAllUnresolvedNamesCommand implements Command
     ): Promise {
         return call(function () use ($uri) {
             $item = $this->workspace->get($uri);
-            foreach ($this->candidateFinder->unresolved($item)->onlyUniqueNames() as $unresolvedName) {
+            foreach ((yield $this->candidateFinder->unresolved($item))->onlyUniqueNames() as $unresolvedName) {
                 assert($unresolvedName instanceof NameWithByteOffset);
                 $candidates = $this->candidates($this->candidateFinder->candidatesForUnresolvedName($unresolvedName));
                 $candidate = yield $this->resolveCandidate($unresolvedName, $candidates);

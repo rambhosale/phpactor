@@ -2,22 +2,26 @@
 
 namespace Phpactor\WorseReflection\Core\Reflector;
 
+use Amp\Promise;
+use Generator;
+use Microsoft\PhpParser\Node;
+use Phpactor\TextDocument\ByteOffset;
 use Phpactor\WorseReflection\Bridge\TolerantParser\Reflection\ReflectionNavigation;
 use Phpactor\WorseReflection\Core\ClassName;
-use Phpactor\WorseReflection\Core\Diagnostics;
 use Phpactor\WorseReflection\Core\Exception\ClassNotFound;
 use Phpactor\WorseReflection\Core\Exception\ConstantNotFound;
 use Phpactor\WorseReflection\Core\Exception\CycleDetected;
 use Phpactor\WorseReflection\Core\Exception\FunctionNotFound;
 use Phpactor\WorseReflection\Core\Exception\NotFound;
+use Phpactor\WorseReflection\Core\Inference\NodeContext;
+use Phpactor\WorseReflection\Core\Inference\Walker;
 use Phpactor\WorseReflection\Core\Name;
-use Phpactor\WorseReflection\Core\Offset;
 use Phpactor\WorseReflection\Core\Reflection\Collection\ReflectionDeclaredConstantCollection;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionDeclaredConstant;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionEnum;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionFunction;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionNode;
-use Phpactor\WorseReflection\Core\SourceCode;
+use Phpactor\TextDocument\TextDocument;
 use Phpactor\WorseReflection\Core\SourceCodeLocator;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionTrait;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionClass;
@@ -30,14 +34,8 @@ use Phpactor\WorseReflection\Core\Reflection\Collection\ReflectionFunctionCollec
 
 class CoreReflector implements ClassReflector, SourceCodeReflector, FunctionReflector, ConstantReflector
 {
-    private SourceCodeReflector $sourceReflector;
-
-    private SourceCodeLocator $sourceLocator;
-
-    public function __construct(SourceCodeReflector $sourceReflector, SourceCodeLocator $sourceLocator)
+    public function __construct(private SourceCodeReflector $sourceReflector, private SourceCodeLocator $sourceLocator)
     {
-        $this->sourceReflector = $sourceReflector;
-        $this->sourceLocator = $sourceLocator;
     }
 
     /**
@@ -167,7 +165,7 @@ class CoreReflector implements ClassReflector, SourceCodeReflector, FunctionRefl
     /**
      * Reflect all classes (or class-likes) in the given source code.
      */
-    public function reflectClassesIn($sourceCode, array $visited = []): ReflectionClassLikeCollection
+    public function reflectClassesIn(TextDocument $sourceCode, array $visited = []): ReflectionClassLikeCollection
     {
         return $this->sourceReflector->reflectClassesIn($sourceCode, $visited);
     }
@@ -175,31 +173,28 @@ class CoreReflector implements ClassReflector, SourceCodeReflector, FunctionRefl
     /**
      * Return the information for the given offset in the given file, including the value
      * and type of a variable and the frame information.
-     *
-     * @param SourceCode|string $sourceCode
-     * @param Offset|int $offset
      */
-    public function reflectOffset($sourceCode, $offset): ReflectionOffset
+    public function reflectOffset(TextDocument $sourceCode, ByteOffset|int $offset): ReflectionOffset
     {
         return $this->sourceReflector->reflectOffset($sourceCode, $offset);
     }
 
-    public function reflectMethodCall($sourceCode, $offset): ReflectionMethodCall
+    public function reflectMethodCall(TextDocument $sourceCode, ByteOffset|int $offset): ReflectionMethodCall
     {
         return $this->sourceReflector->reflectMethodCall($sourceCode, $offset);
     }
 
-    public function reflectFunctionsIn($sourceCode): ReflectionFunctionCollection
+    public function reflectFunctionsIn(TextDocument $sourceCode): ReflectionFunctionCollection
     {
         return $this->sourceReflector->reflectFunctionsIn($sourceCode);
     }
 
-    public function reflectConstantsIn($source): ReflectionDeclaredConstantCollection
+    public function reflectConstantsIn(TextDocument $source): ReflectionDeclaredConstantCollection
     {
         return $this->sourceReflector->reflectConstantsIn($source);
     }
 
-    public function navigate($sourceCode): ReflectionNavigation
+    public function navigate(TextDocument $sourceCode): ReflectionNavigation
     {
         return $this->sourceReflector->navigate($sourceCode);
     }
@@ -215,7 +210,7 @@ class CoreReflector implements ClassReflector, SourceCodeReflector, FunctionRefl
         // function
         try {
             $source = $this->sourceLocator->locate($name);
-        } catch (NotFound $notFound) {
+        } catch (NotFound) {
             $name = Name::fromString($name->short());
             $source = $this->sourceLocator->locate($name);
         }
@@ -239,24 +234,34 @@ class CoreReflector implements ClassReflector, SourceCodeReflector, FunctionRefl
         return $function;
     }
 
-    public function sourceCodeForFunction($name): SourceCode
+    public function sourceCodeForFunction($name): TextDocument
     {
         return $this->sourceLocator->locate(Name::fromUnknown($name));
     }
 
-    public function sourceCodeForClassLike($name): SourceCode
+    public function sourceCodeForClassLike($name): TextDocument
     {
         return $this->sourceLocator->locate(Name::fromUnknown($name));
     }
 
-    public function diagnostics($sourceCode): Diagnostics
+    public function diagnostics(TextDocument $sourceCode): Promise
     {
         return $this->sourceReflector->diagnostics($sourceCode);
+    }
+
+    public function reflectNodeContext(Node $node): NodeContext
+    {
+        return $this->sourceReflector->reflectNodeContext($node);
     }
 
     public function reflectNode($sourceCode, $offset): ReflectionNode
     {
         return $this->sourceReflector->reflectNode($sourceCode, $offset);
+    }
+
+    public function walk(TextDocument $sourceCode, Walker $walker): Generator
+    {
+        return $this->sourceReflector->walk($sourceCode, $walker);
     }
 
     public function reflectConstant($name): ReflectionDeclaredConstant
@@ -267,7 +272,7 @@ class CoreReflector implements ClassReflector, SourceCodeReflector, FunctionRefl
         // function
         try {
             $source = $this->sourceLocator->locate($name);
-        } catch (NotFound $notFound) {
+        } catch (NotFound) {
             $name = Name::fromString($name->short());
             $source = $this->sourceLocator->locate($name);
         }
@@ -289,7 +294,7 @@ class CoreReflector implements ClassReflector, SourceCodeReflector, FunctionRefl
         return $constants->get((string) $name);
     }
 
-    public function sourceCodeForConstant($name): SourceCode
+    public function sourceCodeForConstant($name): TextDocument
     {
         $name = Name::fromUnknown($name);
 
@@ -297,7 +302,7 @@ class CoreReflector implements ClassReflector, SourceCodeReflector, FunctionRefl
         // function
         try {
             $source = $this->sourceLocator->locate($name);
-        } catch (NotFound $notFound) {
+        } catch (NotFound) {
             $name = Name::fromString($name->short());
             $source = $this->sourceLocator->locate($name);
         }

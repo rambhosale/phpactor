@@ -3,6 +3,7 @@
 namespace Phpactor\Rename\Tests;
 
 use Closure;
+use RuntimeException;
 use Generator;
 use PHPUnit\Framework\TestCase;
 use Phpactor\Indexer\Adapter\Worse\WorseRecordReferenceEnhancer;
@@ -12,6 +13,7 @@ use Phpactor\Rename\Model\LocatedTextEdit;
 use Phpactor\Rename\Model\LocatedTextEdits;
 use Phpactor\Rename\Model\Renamer;
 use Phpactor\TestUtils\Workspace;
+use Phpactor\TextDocument\FilesystemTextDocumentLocator;
 use Phpactor\WorseReflection\Core\SourceCodeLocator\BruteForceSourceLocator;
 use Phpactor\WorseReflection\Reflector;
 use Phpactor\WorseReflection\ReflectorBuilder;
@@ -28,6 +30,7 @@ abstract class RenamerTestCase extends TestCase
     protected function setUp(): void
     {
         $this->workspace()->reset();
+        $this->workspace()->mkdir('project');
         $this->reflector = ReflectorBuilder::create()
             ->addLocator(new BruteForceSourceLocator(ReflectorBuilder::create()->build(), $this->workspace()->path('project')))
             ->build();
@@ -36,7 +39,8 @@ abstract class RenamerTestCase extends TestCase
             $this->workspace()->path('project')
         )->setReferenceEnhancer(new WorseRecordReferenceEnhancer(
             $this->reflector,
-            new NullLogger()
+            new NullLogger(),
+            new FilesystemTextDocumentLocator(),
         ))->buildAgent();
     }
 
@@ -47,6 +51,16 @@ abstract class RenamerTestCase extends TestCase
     public function testRename(string $path, Closure $operation, Closure $assertion): void
     {
         $basePath = __DIR__ . '/Cases/' . $path;
+
+
+        if (!file_exists($basePath)) {
+            throw new RuntimeException(sprintf(
+                'Case path "%s" does not yet exist',
+                $basePath
+            ));
+        }
+
+
         foreach ((array)glob($basePath . '/**.ph') as $path) {
             $this->workspace()->put(
                 'project/' . ((string)substr((string)$path, strlen($basePath))) . 'p',
@@ -64,7 +78,7 @@ abstract class RenamerTestCase extends TestCase
             );
         }
 
-        $process = Process::fromShellCommandline('php ' . $this->workspace()->path('project/test.php'));
+        $process = Process::fromShellCommandline(PHP_BINARY . ' ' . $this->workspace()->path('project/test.php'));
         $process->mustRun();
         $assertion($this->reflector);
     }

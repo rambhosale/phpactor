@@ -15,9 +15,9 @@ use Phpactor\Extension\Core\Rpc\StatusHandler;
 class StatusHandlerTest extends HandlerTestCase
 {
     /**
-     * @var Status|ObjectProphecy
+     * @var ObjectProphecy<Status>
      */
-    private $status;
+    private ObjectProphecy $status;
 
     private ObjectProphecy $paths;
 
@@ -40,7 +40,6 @@ class StatusHandlerTest extends HandlerTestCase
         $this->status->check()->willReturn([
             'php_version' => '7.1',
             'phpactor_version' => 'version one',
-            'phpactor_is_develop' => true,
             'cwd' => '/path/to/here',
             'good' => [ 'i am good' ],
             'bad' => [ 'i am bad' ],

@@ -20,33 +20,23 @@ use Phpactor\Indexer\Model\IndexBuilder;
 use Phpactor\TextDocument\TextDocument;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use RuntimeException;
+use Throwable;
 
 final class TolerantIndexBuilder implements IndexBuilder
 {
-    private Index $index;
-
     private Parser $parser;
-
-    /**
-     * @var TolerantIndexer[]
-     */
-    private array $indexers;
-
-    private LoggerInterface $logger;
 
     /**
      * @param TolerantIndexer[] $indexers
      */
     public function __construct(
-        Index $index,
-        array $indexers,
-        LoggerInterface $logger,
+        private Index $index,
+        private array $indexers,
+        private LoggerInterface $logger,
         ?Parser $parser = null
     ) {
-        $this->index = $index;
         $this->parser = $parser ?: new Parser();
-        $this->indexers = $indexers;
-        $this->logger = $logger;
     }
 
     public static function create(Index $index, ?LoggerInterface $logger = null): self
@@ -75,7 +65,7 @@ final class TolerantIndexBuilder implements IndexBuilder
             $indexer->beforeParse($this->index, $document);
         }
 
-        $node = $this->parser->parseSourceFile($document->__toString(), $document->uri()->path());
+        $node = $this->parser->parseSourceFile($document->__toString(), $document->uri()->__toString());
         $this->indexNode($document, $node);
     }
 
@@ -95,9 +85,15 @@ final class TolerantIndexBuilder implements IndexBuilder
                 $this->logger->warning(sprintf(
                     'Cannot index node of class "%s" in file "%s": %s',
                     get_class($node),
-                    $document->uri()->__toString(),
+                    $document->uri()?->__toString() ?? 'unknown',
                     $cannotIndexNode->getMessage()
                 ));
+            } catch (Throwable $cannotIndexNode) {
+                throw new RuntimeException(sprintf(
+                    'Could not index document "%s": %s',
+                    $document->uri() ?? '',
+                    $cannotIndexNode->getMessage()
+                ), 0, $cannotIndexNode);
             }
         }
 

@@ -9,22 +9,16 @@ use RuntimeException;
 use Traversable;
 
 /**
- * @template T of object
+ * @template-covariant T of object
  * @implements IteratorAggregate<array-key,T>
  */
 class NavigatorElementCollection implements IteratorAggregate
 {
     /**
-     * @var T[]
-     */
-    private array $elements;
-
-    /**
      * @param array<T> $elements
      */
-    public function __construct(array $elements)
+    public function __construct(private array $elements)
     {
-        $this->elements = $elements;
     }
 
     /**

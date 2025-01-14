@@ -3,6 +3,7 @@
 namespace Phpactor\WorseReflection\Core\Inference;
 
 use Phpactor\WorseReflection\Core\ClassName;
+use Phpactor\WorseReflection\Core\Exception\SourceNotFound;
 use Phpactor\WorseReflection\Core\Reflection\Collection\ReflectionParameterCollection;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionParameter;
 use Phpactor\WorseReflection\Core\Reflector\ClassReflector;
@@ -13,14 +14,12 @@ use Phpactor\WorseReflection\Core\Type\ClassStringType;
 use Phpactor\WorseReflection\Core\Type\ClassType;
 use Phpactor\WorseReflection\Core\Type\GenericClassType;
 use Phpactor\WorseReflection\Core\Type\StringLiteralType;
+use Phpactor\WorseReflection\Core\Type\UnionType;
 
 class GenericMapResolver
 {
-    private ClassReflector $reflector;
-
-    public function __construct(ClassReflector $reflector)
+    public function __construct(private ClassReflector $reflector)
     {
-        $this->reflector = $reflector;
     }
 
     /**
@@ -32,7 +31,11 @@ class GenericMapResolver
             return null;
         }
 
-        $topReflection = $this->reflector->reflectClassLike($topClass->name());
+        try {
+            $topReflection = $this->reflector->reflectClassLike($topClass->name());
+        } catch (SourceNotFound) {
+            return null;
+        }
 
         $templateMap = $topReflection->templateMap();
         $templateMap = $templateMap->mapArguments($arguments);
@@ -74,42 +77,63 @@ class GenericMapResolver
     {
         foreach ($parameters as $parameter) {
             $parameterType = $parameter->inferredType();
+
+
             if ($parameterType instanceof ClassStringType && $parameterType->className()) {
                 $this->mapClassString($parameterType, $templateMap, $arguments, $parameter);
                 return $templateMap;
             }
-            $parameterType->map(function (Type $type) use ($parameter, $templateMap, $arguments) {
-                if ($type instanceof ClassStringType && $type->className()) {
-                    $this->mapClassString($type, $templateMap, $arguments, $parameter);
-                    return $type;
+            $paramTypes = $parameterType->allTypes();
+            $argumentTypes = $arguments->at($parameter->index())->type()->allTypes();
+
+            foreach ($paramTypes as $index => $paramType) {
+                $argumentType = $argumentTypes->at($index);
+
+                if ($paramType instanceof ClassStringType && $paramType->className()) {
+                    $this->mapClassString($paramType, $templateMap, $arguments, $parameter);
                 }
 
-                if ($templateMap->has($type->short())) {
-                    $templateMap->replace($type->short(), $arguments->at($parameter->index())->type()->generalize());
+                if ($templateMap->has($paramType->short())) {
+                    $templateMap->replace(
+                        $paramType->short(),
+                        $argumentType->generalize()
+                    );
                 }
-
-                return $type;
-            });
+            }
         }
         return $templateMap;
     }
 
     private function mapClassString(ClassStringType $type, TemplateMap $templateMap, FunctionArguments $arguments, ReflectionParameter $parameter): void
     {
-        $argument = $arguments->at($parameter->index())->type();
-        if (!$argument->isDefined()) {
+        $classStringType = $type->className()->short();
+        if (!$templateMap->has($classStringType)) {
             return;
         }
-        $classStringType = $type->className()->short();
-        if ($templateMap->has($classStringType)) {
-            if ($argument instanceof ClassStringType) {
-                $templateMap->replace($classStringType, TypeFactory::reflectedClass($this->reflector, $argument->className()));
-            }
-            if ($argument instanceof StringLiteralType) {
-                $templateMap->replace($classStringType, TypeFactory::reflectedClass($this->reflector, $argument->value()));
+        if ($parameter->isVariadic()) {
+            $arguments = $arguments->from($parameter->index());
+        } else {
+            $arguments = [$arguments->at($parameter->index())];
+        }
+
+        $types = [];
+        foreach ($arguments as $index => $argument) {
+            $argumentType = $argument->type();
+            if ($argumentType instanceof ClassStringType) {
+                $className = $argumentType->className();
+                if (null === $className) {
+                    continue;
+                }
+                $types[] = TypeFactory::reflectedClass($this->reflector, $className);
             }
 
-            return;
+            if ($argumentType instanceof StringLiteralType) {
+                $types[] = TypeFactory::reflectedClass($this->reflector, $argumentType->value());
+            }
+
+            if ($types) {
+                $templateMap->replace($classStringType, UnionType::fromTypes(...$types));
+            }
         }
     }
 }

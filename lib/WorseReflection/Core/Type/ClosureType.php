@@ -6,24 +6,17 @@ use Closure;
 use Phpactor\WorseReflection\Core\ClassName;
 use Phpactor\WorseReflection\Core\Reflector\ClassReflector;
 use Phpactor\WorseReflection\Core\Type;
+use Phpactor\WorseReflection\Core\TypeFactory;
+use Phpactor\WorseReflection\Core\Types;
 
-class ClosureType extends ReflectedClassType implements ClassNamedType, InvokeableType
+class ClosureType extends ReflectedClassType implements ClassLikeType, InvokeableType
 {
-    /**
-     * @var Type[]
-     */
-    private array $args;
-
-    private Type $returnType;
-
     /**
      * @param Type[] $args
      */
-    public function __construct(ClassReflector $reflector, array $args = [], ?Type $returnType = null)
+    public function __construct(ClassReflector $reflector, private array $args = [], private Type $returnType = new MissingType())
     {
         parent::__construct($reflector, ClassName::fromString('Closure'));
-        $this->args = $args;
-        $this->returnType = $returnType ?? new MissingType();
     }
 
     public function __toString(): string
@@ -61,5 +54,14 @@ class ClosureType extends ReflectedClassType implements ClassNamedType, Invokeab
         $new->args = array_map(fn (Type $t) => $t->map($mapper), $this->args);
         $new->returnType = $this->returnType->map($mapper);
         return $new;
+    }
+
+    public function allTypes(): Types
+    {
+        return new Types([
+            TypeFactory::reflectedClass($this->reflector, 'Closure'),
+            ...$this->args,
+            $this->returnType
+        ]);
     }
 }

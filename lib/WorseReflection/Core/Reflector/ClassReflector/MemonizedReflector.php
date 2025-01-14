@@ -16,7 +16,7 @@ use Phpactor\WorseReflection\Core\Reflection\ReflectionTrait;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionClassLike;
 use Phpactor\WorseReflection\Core\Reflector\ConstantReflector;
 use Phpactor\WorseReflection\Core\Reflector\FunctionReflector;
-use Phpactor\WorseReflection\Core\SourceCode;
+use Phpactor\TextDocument\TextDocument;
 
 class MemonizedReflector implements ClassReflector, FunctionReflector, ConstantReflector
 {
@@ -27,23 +27,15 @@ class MemonizedReflector implements ClassReflector, FunctionReflector, ConstantR
     private const ENUM_PREFIX = '__enum__';
     private const CLASS_LIKE_PREFIX = '__class_like__';
 
-    private ClassReflector $classReflector;
-
-    private FunctionReflector $functionReflector;
-
     private ClassReflector $innerReflector;
 
-    private Cache $cache;
-
-    private ConstantReflector $constantReflector;
-
-    public function __construct(ClassReflector $innerReflector, FunctionReflector $functionReflector, ConstantReflector $constantReflector, Cache $cache)
-    {
-        $this->classReflector = $innerReflector;
-        $this->functionReflector = $functionReflector;
-        $this->innerReflector = $innerReflector;
-        $this->cache = $cache;
-        $this->constantReflector = $constantReflector;
+    public function __construct(
+        private ClassReflector $classReflector,
+        private FunctionReflector $functionReflector,
+        private ConstantReflector $constantReflector,
+        private Cache $cache
+    ) {
+        $this->innerReflector = $classReflector;
     }
 
     public function reflectClass($className): ReflectionClass
@@ -94,14 +86,14 @@ class MemonizedReflector implements ClassReflector, FunctionReflector, ConstantR
         });
     }
 
-    public function sourceCodeForFunction($name): SourceCode
+    public function sourceCodeForFunction($name): TextDocument
     {
-        return $this->getOrSet(self::FUNC_PREFIX.'source_code'.$name, function () use ($name) {
+        return $this->getOrSet(self::FUNC_PREFIX.'source_code'.$name, function () use ($name): TextDocument {
             return $this->functionReflector->sourceCodeForFunction($name);
         });
     }
 
-    public function sourceCodeForClassLike($name): SourceCode
+    public function sourceCodeForClassLike($name): TextDocument
     {
         return $this->getOrSet(self::CLASS_LIKE_PREFIX.'source_code'.$name, function () use ($name) {
             return $this->classReflector->sourceCodeForClassLike($name);
@@ -113,13 +105,15 @@ class MemonizedReflector implements ClassReflector, FunctionReflector, ConstantR
         return $this->constantReflector->reflectConstant($name);
     }
 
-    public function sourceCodeForConstant($name): SourceCode
+    public function sourceCodeForConstant($name): TextDocument
     {
         return $this->constantReflector->sourceCodeForConstant($name);
     }
 
     /**
-     * @return mixed
+     * @template T
+     * @param Closure(): T $closure
+     * @return T
      */
     private function getOrSet(string $key, Closure $closure)
     {

@@ -3,7 +3,7 @@
 namespace Phpactor\Extension\Core\Command;
 
 use JsonException;
-use Phpactor\Extension\Core\Model\ConfigManipulator;
+use Phpactor\Configurator\Model\ConfigManipulator;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -15,12 +15,9 @@ class ConfigSetCommand extends Command
     const ARG_VALUE = 'value';
     const OPT_DELETE = 'delete';
 
-    private ConfigManipulator $manipulator;
-
-    public function __construct(ConfigManipulator $manipulator)
+    public function __construct(private ConfigManipulator $manipulator)
     {
         parent::__construct();
-        $this->manipulator = $manipulator;
     }
 
     protected function configure(): void
@@ -34,12 +31,16 @@ class ConfigSetCommand extends Command
     {
         $action = $this->manipulator->initialize();
 
+        /** @var string $key */
         $key = $input->getArgument(self::ARG_KEY);
+
+        /** @var string|null $value */
         $value = $input->getArgument(self::ARG_VALUE);
+
         if ($value !== null) {
             try {
                 $this->manipulator->set($key, json_decode($value, true, 512, JSON_THROW_ON_ERROR));
-            } catch (JsonException $e) {
+            } catch (JsonException) {
                 $output->writeln(sprintf('<error>Could not decode JSON value: %s</>', $value));
                 return 1;
             }

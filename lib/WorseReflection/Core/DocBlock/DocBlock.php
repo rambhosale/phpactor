@@ -11,6 +11,8 @@ use Phpactor\WorseReflection\Core\Type;
 
 interface DocBlock
 {
+    public function typeAliases(): DocBlockTypeAliases;
+
     public function methods(ReflectionClassLike $declaringClass): ReflectionMethodCollection;
 
     public function properties(ReflectionClassLike $declaringClass): ReflectionPropertyCollection;
@@ -30,6 +32,8 @@ interface DocBlock
     public function parameterType(string $paramName): Type;
 
     public function vars(): DocBlockVars;
+
+    public function params(): DocBlockParams;
 
     public function inherits(): bool;
 
@@ -51,4 +55,9 @@ interface DocBlock
      * @return Type[]
      */
     public function mixins(): array;
+
+    /**
+     * @return DocBlockTypeAssertion[]
+     */
+    public function assertions(): array;
 }

@@ -4,11 +4,8 @@ namespace Phpactor\Name;
 
 final class FullyQualifiedName implements Name
 {
-    private QualifiedName $qualifiedName;
-
-    private function __construct(QualifiedName $qualifiedName)
+    private function __construct(private QualifiedName $qualifiedName)
     {
-        $this->qualifiedName = $qualifiedName;
     }
 
     public function __toString(): string
@@ -16,17 +13,17 @@ final class FullyQualifiedName implements Name
         return $this->qualifiedName->__toString();
     }
 
-    public static function fromArray(array $parts): FullyQualifiedName
+    public static function fromArray(array $parts): self
     {
         return new self(QualifiedName::fromArray($parts));
     }
 
-    public static function fromString(string $string): FullyQualifiedName
+    public static function fromString(string $string): self
     {
         return new self(QualifiedName::fromString($string));
     }
 
-    public static function fromQualifiedName(QualifiedName $qualfifiedName): FullyQualifiedName
+    public static function fromQualifiedName(QualifiedName $qualfifiedName): self
     {
         return new self($qualfifiedName);
     }

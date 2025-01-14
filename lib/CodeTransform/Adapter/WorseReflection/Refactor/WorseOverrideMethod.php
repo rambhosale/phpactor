@@ -7,6 +7,7 @@ use Phpactor\CodeBuilder\Domain\Prototype\SourceCode as PhpactorSourceCode;
 use Phpactor\CodeTransform\Domain\Refactor\OverrideMethod;
 use Phpactor\CodeTransform\Domain\SourceCode;
 use Phpactor\TextDocument\TextDocumentBuilder;
+use Phpactor\TextDocument\TextEdits;
 use Phpactor\WorseReflection\Core\Type\ClassType;
 use Phpactor\WorseReflection\Reflector;
 use Phpactor\CodeBuilder\Domain\Updater;
@@ -20,20 +21,14 @@ use Phpactor\CodeBuilder\Domain\BuilderFactory;
 
 class WorseOverrideMethod implements OverrideMethod
 {
-    private Updater $updater;
-
-    private Reflector $reflector;
-
-    private BuilderFactory $factory;
-
-    public function __construct(Reflector $reflector, BuilderFactory $factory, Updater $updater)
-    {
-        $this->factory = $factory;
-        $this->updater = $updater;
-        $this->reflector = $reflector;
+    public function __construct(
+        private Reflector $reflector,
+        private BuilderFactory $factory,
+        private Updater $updater
+    ) {
     }
 
-    public function overrideMethod(SourceCode $source, string $className, string $methodName): string
+    public function overrideMethod(SourceCode $source, string $className, string $methodName): TextEdits
     {
         $class = $this->getReflectionClass($source, $className);
         $method = $this->getAncestorReflectionMethod($class, $methodName);
@@ -41,13 +36,13 @@ class WorseOverrideMethod implements OverrideMethod
         $methodBuilder = $this->getMethodPrototype($class, $method);
         $sourcePrototype = $this->getSourcePrototype($class, $method, $source, $methodBuilder);
 
-        return $this->updater->textEditsFor($sourcePrototype, Code::fromString((string) $source))->apply($source);
+        return $this->updater->textEditsFor($sourcePrototype, Code::fromString((string) $source));
     }
 
     private function getReflectionClass(SourceCode $source, string $className): ReflectionClass
     {
         $builder = TextDocumentBuilder::create($source)->language('php');
-        if ($source->path()) {
+        if ($source->uri()->path()) {
             $builder->uri($source->uri());
         }
 
@@ -93,14 +88,14 @@ class WorseOverrideMethod implements OverrideMethod
     {
         $usedClasses = [];
 
-        foreach ($method->returnType()->classNamedTypes() as $classType) {
+        foreach ($method->returnType()->allTypes()->classLike() as $classType) {
             $usedClasses[] = $classType;
         }
 
         /**
          * @var ReflectionParameter $parameter */
         foreach ($method->parameters() as $parameter) {
-            foreach ($parameter->type()->classNamedTypes() as $classType) {
+            foreach ($parameter->type()->expandTypes()->classLike() as $classType) {
                 $usedClasses[] = $classType;
             }
         }

@@ -3,6 +3,7 @@
 namespace Phpactor\Extension\Behat\Adapter\Symfony;
 
 use DOMDocument;
+use DOMElement;
 use DOMXPath;
 use Phpactor\Extension\Behat\Behat\ContextClassResolver;
 use Phpactor\Extension\Behat\Behat\Exception\CouldNotResolverContextClass;
@@ -10,16 +11,13 @@ use RuntimeException;
 
 class SymfonyDiContextClassResolver implements ContextClassResolver
 {
-    private string $xmlPath;
-
     /**
      * @var array<string,string>
      */
     private ?array $index = null;
 
-    public function __construct(string $xmlPath)
+    public function __construct(private string $xmlPath)
     {
-        $this->xmlPath = $xmlPath;
     }
 
     public function resolve(string $className): string
@@ -54,6 +52,9 @@ class SymfonyDiContextClassResolver implements ContextClassResolver
         $query->registerNamespace('s', 'http://symfony.com/schema/dic/services');
         /** @phpstan-ignore-next-line */
         foreach ($query->query('//s:service') as $serviceEl) {
+            if (!$serviceEl instanceof DOMElement) {
+                continue;
+            }
             $this->index[(string)$serviceEl->getAttribute('id')] = (string)$serviceEl->getAttribute('class');
         }
     }

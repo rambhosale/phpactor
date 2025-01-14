@@ -10,11 +10,8 @@ use function Amp\delay;
 
 class SelfDestructListener implements ListenerProviderInterface
 {
-    private int $selfDestructTimeout;
-
-    public function __construct(int $selfDestructTimeout)
+    public function __construct(private int $selfDestructTimeout)
     {
-        $this->selfDestructTimeout = $selfDestructTimeout;
     }
 
     /**
@@ -36,7 +33,7 @@ class SelfDestructListener implements ListenerProviderInterface
         asyncCall(function () {
             yield delay($this->selfDestructTimeout);
             throw new ExitSession(sprintf(
-                'Waited "%s" seconds after shutdown request for exit notification but did not get one so I\'m self destructing.',
+                'Waited "%s" milliseconds after shutdown request for exit notification but did not get one so I\'m self destructing.',
                 $this->selfDestructTimeout
             ));
         });

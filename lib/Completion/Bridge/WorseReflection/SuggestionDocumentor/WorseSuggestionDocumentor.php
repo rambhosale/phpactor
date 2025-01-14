@@ -12,14 +12,10 @@ use Phpactor\WorseReflection\Reflector;
 
 class WorseSuggestionDocumentor implements SuggestionDocumentor
 {
-    private Reflector $reflector;
-
-    private ObjectRenderer $renderer;
-
-    public function __construct(Reflector $reflector, ObjectRenderer $renderer)
-    {
-        $this->reflector = $reflector;
-        $this->renderer = $renderer;
+    public function __construct(
+        private Reflector $reflector,
+        private ObjectRenderer $renderer
+    ) {
     }
 
     public function document(Suggestion $suggestion): Closure
@@ -34,7 +30,7 @@ class WorseSuggestionDocumentor implements SuggestionDocumentor
             if ($suggestion->type() === Suggestion::TYPE_CLASS) {
                 try {
                     $reflectionClass = $this->reflector->reflectClassLike($fqn);
-                } catch (NotFound $notFound) {
+                } catch (NotFound) {
                     return $suggestion->documentation();
                 }
 
@@ -48,7 +44,7 @@ class WorseSuggestionDocumentor implements SuggestionDocumentor
             if ($suggestion->type() === Suggestion::TYPE_FUNCTION) {
                 try {
                     $reflectionFunction = $this->reflector->reflectFunction($fqn);
-                } catch (NotFound $notFound) {
+                } catch (NotFound) {
                     return $suggestion->documentation();
                 }
 
@@ -62,7 +58,7 @@ class WorseSuggestionDocumentor implements SuggestionDocumentor
             if ($suggestion->type() === Suggestion::TYPE_CONSTANT) {
                 try {
                     $reflectionConstant = $this->reflector->reflectConstant($fqn);
-                } catch (NotFound $notFound) {
+                } catch (NotFound) {
                     return $suggestion->documentation();
                 }
 

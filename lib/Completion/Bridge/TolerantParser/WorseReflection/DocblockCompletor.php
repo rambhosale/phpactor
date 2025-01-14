@@ -29,6 +29,7 @@ class DocblockCompletor implements TolerantCompletor
         '@implements',
         '@template',
         '@template-extends',
+        '@throws',
     ];
     const TAGS_WITH_VAR = [
         '@param',
@@ -41,18 +42,18 @@ class DocblockCompletor implements TolerantCompletor
         '@property',
         '@implements',
         '@extends',
+        '@throws',
     ];
 
-    private TypeSuggestionProvider $typeSuggestionProvider;
-
-    private Parser $parser;
-
-    public function __construct(TypeSuggestionProvider $typeSuggestionProvider, Parser $parser)
-    {
-        $this->typeSuggestionProvider = $typeSuggestionProvider;
-        $this->parser = $parser;
+    public function __construct(
+        private TypeSuggestionProvider $typeSuggestionProvider,
+        private Parser $parser
+    ) {
     }
 
+    /**
+     * @return Generator<Suggestion>
+     */
     public function complete(Node $node, TextDocument $source, ByteOffset $byteOffset): Generator
     {
         // we re-parse the document because the above node is for the truncated
@@ -80,7 +81,7 @@ class DocblockCompletor implements TolerantCompletor
         }
 
         foreach (self::SUPPORTED_TAGS as $supportedTag) {
-            if (0 === strpos($supportedTag, $tag)) {
+            if (str_starts_with($supportedTag, $tag)) {
                 yield Suggestion::createWithOptions(
                     $supportedTag,
                     [
@@ -107,11 +108,17 @@ class DocblockCompletor implements TolerantCompletor
         return [$matches[1], $matches[2], $matches[3] ?? null];
     }
 
+    /**
+     * @return Generator<Suggestion>
+     */
     private function completeType(Node $node, string $tag, string $search): Generator
     {
         yield from $this->typeSuggestionProvider->provide($node, $search);
     }
 
+    /**
+     * @return Generator<Suggestion>
+     */
     private function varCompletion(Node $node, ByteOffset $offset, string $tag, string $var): Generator
     {
         if (!in_array($tag, self::TAGS_WITH_VAR)) {

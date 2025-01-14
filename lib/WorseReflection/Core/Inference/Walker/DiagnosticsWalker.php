@@ -18,16 +18,10 @@ class DiagnosticsWalker implements Walker
     private array $diagnostics = [];
 
     /**
-     * @var DiagnosticProvider[]
-     */
-    private array $providers;
-
-    /**
      * @param DiagnosticProvider[] $providers
      */
-    public function __construct(array $providers)
+    public function __construct(private array $providers)
     {
-        $this->providers = $providers;
     }
 
     public function nodeFqns(): array
@@ -47,6 +41,9 @@ class DiagnosticsWalker implements Walker
         return $frame;
     }
 
+    /**
+     * @return Diagnostics<Diagnostic>
+     */
     public function diagnostics(): Diagnostics
     {
         return new Diagnostics($this->diagnostics);

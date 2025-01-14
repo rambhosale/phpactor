@@ -12,16 +12,10 @@ use ArrayIterator;
 final class Problems implements IteratorAggregate, Countable
 {
     /**
-     * @var NodeContext[]
-     */
-    private array $problems = [];
-
-    /**
      * @param NodeContext[] $problems
      */
-    private function __construct(array $problems = [])
+    private function __construct(private array $problems = [])
     {
-        $this->problems = $problems;
     }
 
     public function __toString()
@@ -30,13 +24,13 @@ final class Problems implements IteratorAggregate, Countable
         foreach ($this->problems as $symbolInformation) {
             $lines[] = sprintf(
                 '%s:%s %s',
-                $symbolInformation->symbol()->position()->start(),
-                $symbolInformation->symbol()->position()->end(),
+                $symbolInformation->symbol()->position()->start()->toInt(),
+                $symbolInformation->symbol()->position()->end()->toInt(),
                 implode(', ', $symbolInformation->issues())
             );
         }
 
-        return implode(PHP_EOL, $lines);
+        return implode("\n", $lines);
     }
 
     public static function create(): Problems

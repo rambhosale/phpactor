@@ -20,34 +20,26 @@ use Phpactor\WorseReflection\Core\Reflection\ReflectionClass;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionEnum;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionProperty;
 use Phpactor\WorseReflection\Core\Type;
-use Phpactor\WorseReflection\Core\Type\ClassType;
+use Phpactor\WorseReflection\Core\Type\ClassLikeType;
 use Phpactor\WorseReflection\Reflector;
 use Phpactor\Completion\Core\Suggestion;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionInterface;
 use Phpactor\Completion\Core\Formatter\ObjectFormatter;
 use Microsoft\PhpParser\Node\Expression\MemberAccessExpression;
 use Microsoft\PhpParser\Node\Expression\ScopedPropertyAccessExpression;
+use function in_array;
+use function str_starts_with;
+use function strlen;
+use function substr;
 
 class WorseClassMemberCompletor implements TolerantCompletor, TolerantQualifiable
 {
-    private Reflector $reflector;
-
-    private ObjectFormatter $formatter;
-
-    private ObjectFormatter $snippetFormatter;
-
-    private ObjectRenderer $objectRenderer;
-
     public function __construct(
-        Reflector $reflector,
-        ObjectFormatter $formatter,
-        ObjectFormatter $snippetFormatter,
-        ObjectRenderer $objectRenderer
+        private Reflector $reflector,
+        private ObjectFormatter $formatter,
+        private ObjectFormatter $snippetFormatter,
+        private ObjectRenderer $objectRenderer
     ) {
-        $this->reflector = $reflector;
-        $this->formatter = $formatter;
-        $this->snippetFormatter = $snippetFormatter;
-        $this->objectRenderer = $objectRenderer;
     }
 
     public function qualifier(): TolerantQualifier
@@ -87,13 +79,13 @@ class WorseClassMemberCompletor implements TolerantCompletor, TolerantQualifiabl
 
         $reflectionOffset = $this->reflector->reflectOffset($source, $memberStartOffset);
 
-        $symbolContext = $reflectionOffset->symbolContext();
-        $type = $symbolContext->type();
+        $nodeContext = $reflectionOffset->nodeContext();
+        $type = $nodeContext->type();
         $static = $node instanceof ScopedPropertyAccessExpression;
 
-        foreach ($type->classNamedTypes() as $type) {
-            foreach ($this->populateSuggestions($symbolContext, $type, $static, $shouldCompleteOnlyName, $isInstance) as $suggestion) {
-                if ($partialMatch && 0 !== mb_strpos($suggestion->name(), $partialMatch)) {
+        foreach ($type->expandTypes()->classLike() as $type) {
+            foreach ($this->populateSuggestions($nodeContext, $type, $static, $shouldCompleteOnlyName, $isInstance) as $suggestion) {
+                if ($partialMatch && !str_starts_with($suggestion->name(), $partialMatch)) {
                     continue;
                 }
 
@@ -104,23 +96,26 @@ class WorseClassMemberCompletor implements TolerantCompletor, TolerantQualifiabl
         return true;
     }
 
-    private function populateSuggestions(NodeContext $symbolContext, Type $type, bool $static, bool $completeOnlyName, bool $isInstance): Generator
+    /**
+     * @return Generator<Suggestion>
+     */
+    private function populateSuggestions(NodeContext $nodeContext, Type $type, bool $static, bool $completeOnlyName, bool $isInstance): Generator
     {
         if (false === ($type->isDefined())) {
             return;
         }
 
-        $isParent = $symbolContext->symbol()->name() === 'parent';
-        $publicOnly = !in_array($symbolContext->symbol()->name(), ['this', 'self'], true);
+        $isParent = $nodeContext->symbol()->name() === 'parent';
+        $publicOnly = !in_array($nodeContext->symbol()->name(), ['this', 'self'], true);
 
 
-        $type = $type->classNamedTypes()->firstOrNull();
+        $type = $type->expandTypes()->classLike()->firstOrNull();
 
         if (!$type) {
             return;
         }
 
-        if (!$type instanceof ClassType) {
+        if (!$type instanceof ClassLikeType) {
             return;
         }
 
@@ -136,7 +131,7 @@ class WorseClassMemberCompletor implements TolerantCompletor, TolerantQualifiabl
 
         try {
             $classReflection = $this->reflector->reflectClassLike($type->name());
-        } catch (NotFound $notFound) {
+        } catch (NotFound) {
             return;
         }
 
@@ -197,9 +192,14 @@ class WorseClassMemberCompletor implements TolerantCompletor, TolerantQualifiabl
         }
 
         if (false === $isInstance && $classReflection instanceof ReflectionClass ||
-            $classReflection instanceof ReflectionInterface
+            $classReflection instanceof ReflectionInterface ||
+            $classReflection instanceof ReflectionEnum
         ) {
             foreach ($members->constants() as $constant) {
+                if ($publicOnly && false === $constant->visibility()->isPublic()) {
+                    continue;
+                }
+
                 yield Suggestion::createWithOptions($constant->name(), [
                     'type' => Suggestion::TYPE_CONSTANT,
                     'short_description' => fn () => $this->formatter->format($constant),

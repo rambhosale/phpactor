@@ -2,6 +2,7 @@
 
 namespace Phpactor\Extension\LanguageServerIndexer\Handler;
 
+use function Amp\call;
 use Amp\CancellationToken;
 use Amp\CancelledException;
 use Amp\Delayed;
@@ -16,39 +17,28 @@ use Phpactor\LanguageServer\Core\Handler\Handler;
 use Phpactor\LanguageServer\Core\Server\ClientApi;
 use Phpactor\Indexer\Model\Indexer;
 use Phpactor\LanguageServer\Core\Service\ServiceProvider;
+use Phpactor\LanguageServer\WorkDoneProgress\ProgressNotifier;
 use Phpactor\LanguageServer\WorkDoneProgress\WorkDoneToken;
 use Phpactor\TextDocument\Exception\TextDocumentNotFound;
 use Phpactor\TextDocument\TextDocumentBuilder;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use function Amp\asyncCall;
+use function Amp\delay;
 
 class IndexerHandler implements Handler, ServiceProvider
 {
     const SERVICE_INDEXER = 'indexer';
 
-    private Indexer $indexer;
-
-    private Watcher $watcher;
-
-    private LoggerInterface $logger;
-
-    private ClientApi $clientApi;
-
-    private EventDispatcherInterface $eventDispatcher;
-
     public function __construct(
-        Indexer $indexer,
-        Watcher $watcher,
-        ClientApi $clientApi,
-        LoggerInterface $logger,
-        EventDispatcherInterface $eventDispatcher
+        private Indexer $indexer,
+        private Watcher $watcher,
+        private ClientApi $clientApi,
+        private LoggerInterface $logger,
+        private EventDispatcherInterface $eventDispatcher,
+        private ProgressNotifier $progressNotifier,
+        private ?int $reindexTimeout = null,
     ) {
-        $this->indexer = $indexer;
-        $this->watcher = $watcher;
-        $this->logger = $logger;
-        $this->clientApi = $clientApi;
-        $this->eventDispatcher = $eventDispatcher;
     }
 
     /**
@@ -76,13 +66,13 @@ class IndexerHandler implements Handler, ServiceProvider
      */
     public function indexer(CancellationToken $cancel): Promise
     {
-        return \Amp\call(function () use ($cancel) {
+        return call(function () use ($cancel) {
             $job = $this->indexer->getJob();
             $size = $job->size();
             $token = WorkDoneToken::generate();
 
-            yield $this->clientApi->workDoneProgress()->create($token);
-            $this->clientApi->workDoneProgress()->begin($token, 'Indexing workspace', sprintf('%d PHP files', $size), 0);
+            yield $this->progressNotifier->create($token);
+            $this->progressNotifier->begin($token, 'Indexing workspace', sprintf('%d PHP files', $size), 0);
 
             $start = microtime(true);
             $index = 0;
@@ -91,7 +81,7 @@ class IndexerHandler implements Handler, ServiceProvider
 
                 if ($index % 500 === 0) {
                     $usage = MemoryUsage::create();
-                    $this->clientApi->workDoneProgress()->report(
+                    $this->progressNotifier->report(
                         $token,
                         sprintf(
                             '%s/%s (%s%%, %s)',
@@ -106,7 +96,7 @@ class IndexerHandler implements Handler, ServiceProvider
 
                 try {
                     $cancel->throwIfRequested();
-                } catch (CancelledException $cancelled) {
+                } catch (CancelledException) {
                     break;
                 }
 
@@ -120,15 +110,33 @@ class IndexerHandler implements Handler, ServiceProvider
                 MemoryUsage::create()->memoryUsageFormatted(),
                 $this->watcher->describe()
             );
-            $this->clientApi->workDoneProgress()->end($token, $message);
+            $this->progressNotifier->end($token, $message);
+
+            (function (?int $timeout) use ($cancel): void {
+                if ($timeout === null) {
+                    return;
+                }
+                asyncCall(function () use ($cancel, $timeout) {
+                    while (true) {
+                        if ($cancel->isRequested()) {
+                            break;
+                        }
+                        yield delay($timeout);
+                        yield $this->reindex(true);
+                    }
+                });
+            })($this->reindexTimeout);
 
             return yield from $this->watch($process, $cancel);
         });
     }
 
+    /**
+     * @return Promise<void>
+     */
     public function reindex(bool $soft = false): Promise
     {
-        return \Amp\call(function () use ($soft): void {
+        return call(function () use ($soft): void {
             if (false === $soft) {
                 $this->indexer->reset();
             }
@@ -162,7 +170,7 @@ class IndexerHandler implements Handler, ServiceProvider
             while (null !== $file = yield $process->wait()) {
                 try {
                     $cancel->throwIfRequested();
-                } catch (CancelledException $cancelled) {
+                } catch (CancelledException) {
                     $process->stop();
                     break;
                 }
@@ -170,7 +178,7 @@ class IndexerHandler implements Handler, ServiceProvider
                 try {
                     $this->logger->debug(sprintf('Indexing %s', $file->path()));
                     $this->indexer->index(TextDocumentBuilder::fromUri($file->path())->build());
-                } catch (TextDocumentNotFound $error) {
+                } catch (TextDocumentNotFound) {
                     $this->logger->warning(sprintf(
                         'Trired to index non-existing file "%s"',
                         $file->path()

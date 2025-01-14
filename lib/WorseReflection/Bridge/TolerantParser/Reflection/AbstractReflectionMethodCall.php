@@ -6,13 +6,13 @@ use Microsoft\PhpParser\Node\Expression\MemberAccessExpression;
 use Microsoft\PhpParser\Node\Expression\ScopedPropertyAccessExpression;
 use Microsoft\PhpParser\Node\MethodDeclaration;
 use Microsoft\PhpParser\Node\Statement\ReturnStatement;
-use Phpactor\TextDocument\ByteOffsetRange;
 use Phpactor\WorseReflection\Core\Exception\CouldNotResolveNode;
 use Phpactor\WorseReflection\Core\Exception\ItemNotFound;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionClass;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionFunctionLike;
+use Phpactor\WorseReflection\Core\Reflection\ReflectionMethod;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionMethodCall as CoreReflectionMethodCall;
-use Phpactor\WorseReflection\Core\Position;
+use Phpactor\TextDocument\ByteOffsetRange;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionClassLike;
 use Phpactor\WorseReflection\Core\Inference\Frame;
 use Microsoft\PhpParser\Node;
@@ -27,32 +27,19 @@ use RuntimeException;
 
 abstract class AbstractReflectionMethodCall implements CoreReflectionMethodCall
 {
-    private Frame $frame;
-
-    /**
-     * @var ScopedPropertyAccessExpression|MemberAccessExpression
-     */
-    private $node;
-
-    private ServiceLocator $services;
-
     /**
      * @param ScopedPropertyAccessExpression|MemberAccessExpression $node
      */
     public function __construct(
-        ServiceLocator $services,
-        Frame $frame,
-        Node $node
+        private ServiceLocator $services,
+        private Frame $frame,
+        private Node $node
     ) {
-        $this->services = $services;
-        $this->frame = $frame;
-        $this->node = $node;
     }
 
-    public function position(): Position
+    public function position(): ByteOffsetRange
     {
-        return Position::fromFullStartStartAndEnd(
-            $this->node->getFullStartPosition(),
+        return ByteOffsetRange::fromInts(
             $this->node->getStartPosition(),
             $this->node->getEndPosition()
         );
@@ -60,7 +47,7 @@ abstract class AbstractReflectionMethodCall implements CoreReflectionMethodCall
 
     public function class(): ReflectionClassLike
     {
-        $info = $this->services->symbolContextResolver()->resolveNode($this->frame, $this->node);
+        $info = $this->services->nodeContextResolver()->resolveNode($this->frame, $this->node);
         $containerType = $info->containerType();
 
         if (!$containerType instanceof ReflectedClassType) {
@@ -103,11 +90,17 @@ abstract class AbstractReflectionMethodCall implements CoreReflectionMethodCall
     }
 
 
+    public function method(): ReflectionMethod
+    {
+        $class = $this->class();
+        return $class->methods()->get($this->name());
+    }
+
     public function inferredReturnType(): Type
     {
         $return = $this->node->getFirstAncestor(ReturnStatement::class);
         if ($return) {
-            $functionLike = $this->functionLike();
+            $functionLike = $this->containingFunctionLike();
             if (null === $functionLike) {
                 return new MissingType();
             }
@@ -139,7 +132,7 @@ abstract class AbstractReflectionMethodCall implements CoreReflectionMethodCall
         return $this->node->parent;
     }
 
-    private function functionLike(): ?ReflectionFunctionLike
+    private function containingFunctionLike(): ?ReflectionFunctionLike
     {
         $method = $this->node->getFirstAncestor(MethodDeclaration::class);
         if ($method instanceof MethodDeclaration) {
@@ -147,7 +140,7 @@ abstract class AbstractReflectionMethodCall implements CoreReflectionMethodCall
             if ($class instanceof ReflectionClass) {
                 try {
                     return $class->methods()->get($method->getName());
-                } catch (ItemNotFound $notFound) {
+                } catch (ItemNotFound) {
                 }
             }
         }

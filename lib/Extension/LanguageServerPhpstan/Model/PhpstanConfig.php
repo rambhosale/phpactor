@@ -4,14 +4,8 @@ namespace Phpactor\Extension\LanguageServerPhpstan\Model;
 
 final class PhpstanConfig
 {
-    private string $phpstanBin;
-
-    private ?string $level;
-
-    public function __construct(string $phpstanBin, ?string $level = null)
+    public function __construct(private string $phpstanBin, private ?string $level = null, private ?string $config = null, private ?string $memLimit = null)
     {
-        $this->phpstanBin = $phpstanBin;
-        $this->level = $level;
     }
 
     public function level(): ?string
@@ -22,5 +16,15 @@ final class PhpstanConfig
     public function phpstanBin(): string
     {
         return $this->phpstanBin;
+    }
+
+    public function config(): ?string
+    {
+        return $this->config;
+    }
+
+    public function memLimit(): ?string
+    {
+        return $this->memLimit;
     }
 }

@@ -10,9 +10,9 @@ use Phpactor\DocblockParser\Ast\Type\LiteralFloatNode;
 use Phpactor\DocblockParser\Ast\Type\LiteralIntegerNode;
 use Phpactor\DocblockParser\Ast\Type\LiteralStringNode;
 use Phpactor\DocblockParser\Ast\Type\NullableNode;
-use Phpactor\WorseReflection\Core\Reflection\ReflectionScope;
 use Phpactor\DocblockParser\Ast\Type\ConstantNode;
 use Phpactor\DocblockParser\Ast\Type\ParenthesizedType;
+use Phpactor\WorseReflection\Core\Reflection\ReflectionScope;
 use Phpactor\WorseReflection\Core\Type\ArrayKeyType;
 use Phpactor\DocblockParser\Ast\Node;
 use Phpactor\DocblockParser\Ast\TypeNode;
@@ -41,6 +41,10 @@ use Phpactor\WorseReflection\Core\Type\FloatType;
 use Phpactor\WorseReflection\Core\Type\GenericClassType;
 use Phpactor\WorseReflection\Core\Type\GlobbedConstantUnionType;
 use Phpactor\WorseReflection\Core\Type\IntLiteralType;
+use Phpactor\WorseReflection\Core\Type\IntMaxType;
+use Phpactor\WorseReflection\Core\Type\IntNegative;
+use Phpactor\WorseReflection\Core\Type\IntPositive;
+use Phpactor\WorseReflection\Core\Type\IntRangeType;
 use Phpactor\WorseReflection\Core\Type\IntType;
 use Phpactor\WorseReflection\Core\Type\IntersectionType;
 use Phpactor\WorseReflection\Core\Type\InvokeableType;
@@ -66,14 +70,8 @@ use Phpactor\WorseReflection\Reflector;
 
 class TypeConverter
 {
-    private Reflector $reflector;
-
-    private ?ReflectionScope $scope;
-
-    public function __construct(Reflector $reflector, ?ReflectionScope $scope)
+    public function __construct(private Reflector $reflector, private ?ReflectionScope $scope)
     {
-        $this->reflector = $reflector;
-        $this->scope = $scope;
     }
 
     public function convert(?TypeNode $type): Type
@@ -216,6 +214,27 @@ class TypeConverter
             }
             return new ArrayType(new MissingType());
         }
+        if ($type->type instanceof ScalarNode && $type->type->name->value === 'int') {
+            $parameters = array_values(iterator_to_array($type->parameters()->types()));
+            if (count($parameters) === 2) {
+                $start = $this->convert($parameters[0]);
+                $end = $this->convert($parameters[1]);
+                if ($start instanceof ClassType) {
+                    if ($start->name()->short() === 'min') {
+                        $start = null;
+                    }
+                }
+                if ($end instanceof ClassType) {
+                    if ($end->name()->short() === 'max') {
+                        $end = null;
+                    }
+                }
+                return new IntRangeType(
+                    $start,
+                    $end,
+                );
+            }
+        }
 
         if ($type->type instanceof ListNode) {
             $parameters = array_values(iterator_to_array($type->parameters()->types()));
@@ -249,7 +268,7 @@ class TypeConverter
 
         if ($classType instanceof ClassStringType) {
             $parameters = $type->parameters();
-            if ($parameters->count()) {
+            if ($parameters->types()->count()) {
                 return new ClassStringType(
                     ClassName::fromString($this->convert(
                         $parameters->types()->first()
@@ -307,6 +326,13 @@ class TypeConverter
             return new VoidType();
         }
 
+        if ($name === 'positive-int') {
+            return new IntPositive();
+        }
+
+        if ($name === 'negative-int') {
+            return new IntNegative();
+        }
         $type = new ReflectedClassType(
             $this->reflector,
             ClassName::fromString(
@@ -372,6 +398,9 @@ class TypeConverter
 
     private function convertLiteralInteger(LiteralIntegerNode $type): Type
     {
+        if ((int)$type->token->value === PHP_INT_MAX) {
+            return new IntMaxType();
+        }
         return new IntLiteralType((int)$type->token->value);
     }
 

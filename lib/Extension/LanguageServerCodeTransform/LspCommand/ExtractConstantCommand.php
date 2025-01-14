@@ -8,7 +8,7 @@ use Phpactor\CodeTransform\Domain\Exception\TransformException;
 use Phpactor\CodeTransform\Domain\Refactor\ExtractConstant;
 use Phpactor\CodeTransform\Domain\SourceCode;
 use Phpactor\Extension\LanguageServerBridge\Converter\TextEditConverter;
-use Phpactor\LanguageServerProtocol\ApplyWorkspaceEditResponse;
+use Phpactor\LanguageServerProtocol\ApplyWorkspaceEditResult;
 use Phpactor\LanguageServerProtocol\WorkspaceEdit;
 use Phpactor\LanguageServer\Core\Command\Command;
 use Phpactor\LanguageServer\Core\Server\ClientApi;
@@ -19,24 +19,15 @@ class ExtractConstantCommand implements Command
     public const NAME  = 'extract_constant';
     public const DEFAULT_VARIABLE_NAME  = 'NEW_CONSTANT';
 
-    private ClientApi $clientApi;
-
-    private Workspace $workspace;
-
-    private ExtractConstant $extractConstant;
-
     public function __construct(
-        ClientApi $clientApi,
-        Workspace $workspace,
-        ExtractConstant $extractConstant
+        private ClientApi $clientApi,
+        private Workspace $workspace,
+        private ExtractConstant $extractConstant
     ) {
-        $this->clientApi = $clientApi;
-        $this->workspace = $workspace;
-        $this->extractConstant = $extractConstant;
     }
 
     /**
-     * @return Promise<?ApplyWorkspaceEditResponse>
+     * @return Promise<?ApplyWorkspaceEditResult>
      */
     public function __invoke(string $uri, int $offset): Promise
     {

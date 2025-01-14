@@ -4,6 +4,7 @@ namespace Phpactor\WorseReflection\Bridge\TolerantParser\Reflection;
 
 use Microsoft\PhpParser\Node;
 use Microsoft\PhpParser\Node\EnumCaseDeclaration;
+use Microsoft\PhpParser\Node\QualifiedName;
 use Microsoft\PhpParser\Token;
 use Phpactor\TextDocument\ByteOffsetRange;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionClassLike;
@@ -18,30 +19,25 @@ use RuntimeException;
 
 class ReflectionEnumCase extends AbstractReflectionClassMember implements CoreReflectionEnumCase
 {
-    private ServiceLocator $serviceLocator;
-
-    private EnumCaseDeclaration $node;
-
-    private ReflectionEnum $enum;
-
     public function __construct(
-        ServiceLocator $serviceLocator,
-        ReflectionEnum $class,
-        EnumCaseDeclaration $node
+        private ServiceLocator $serviceLocator,
+        private ReflectionEnum $enum,
+        private EnumCaseDeclaration $node
     ) {
-        $this->serviceLocator = $serviceLocator;
-        $this->node = $node;
-        $this->enum = $class;
     }
 
     public function name(): string
     {
+        /** @var object $name */
         $name = $this->node->name;
-        /** @phpstan-ignore-next-line Invalid type hint in TP */
         if ($name instanceof Token) {
-            return $name->getText($this->node->getFileContents());
+            return (string)$name->getText($this->node->getFileContents());
         }
-        return $this->node->name->__toString();
+        if ($name instanceof QualifiedName) {
+            return $name->__toString();
+        }
+
+        throw new RuntimeException('This should not happen');
     }
 
     public function nameRange(): ByteOffsetRange
@@ -53,7 +49,7 @@ class ReflectionEnumCase extends AbstractReflectionClassMember implements CoreRe
     public function type(): Type
     {
         if ($this->class()->isBacked()) {
-            return TypeFactory::enumBackedCaseType($this->class()->type(), $this->name(), $this->value());
+            return TypeFactory::enumBackedCaseType($this->serviceLocator()->reflector(), $this->class()->type(), $this->name(), $this->value());
         }
         return TypeFactory::enumCaseType($this->serviceLocator()->reflector(), $this->class()->type(), $this->name());
     }
@@ -88,16 +84,16 @@ class ReflectionEnumCase extends AbstractReflectionClassMember implements CoreRe
         }
 
         return $this->serviceLocator()
-                    ->symbolContextResolver()
+                    ->nodeContextResolver()
                     ->resolveNode(
-                        new Frame('_'),
+                        new Frame(),
                         $this->node->assignment
                     )->type();
     }
 
     public function memberType(): string
     {
-        return ReflectionMember::TYPE_ENUM;
+        return ReflectionMember::TYPE_CASE;
     }
 
     public function withClass(ReflectionClassLike $class): ReflectionMember

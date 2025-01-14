@@ -20,20 +20,11 @@ use Phpactor\WorseReflection\Reflector;
 
 class WorseFunctionCompletor implements TolerantCompletor
 {
-    private Reflector $reflector;
-
-    private ObjectFormatter $formatter;
-
-    private ObjectFormatter $snippetFormatter;
-
     public function __construct(
-        Reflector $reflector,
-        ObjectFormatter $formatter,
-        ObjectFormatter $snippetFormatter
+        private Reflector $reflector,
+        private ObjectFormatter $formatter,
+        private ObjectFormatter $snippetFormatter
     ) {
-        $this->reflector = $reflector;
-        $this->formatter = $formatter;
-        $this->snippetFormatter = $snippetFormatter;
     }
 
     public function complete(Node $node, TextDocument $source, ByteOffset $offset): Generator
@@ -97,7 +88,7 @@ class WorseFunctionCompletor implements TolerantCompletor
         foreach ($functions as $type => $functionNames) {
             foreach ($functionNames as $functionName) {
                 $functionName = Name::fromString($functionName);
-                if (0 === strpos($functionName->short(), $partialName)) {
+                if (str_starts_with($functionName->short(), $partialName)) {
                     yield $functionName;
                 }
             }
@@ -109,7 +100,7 @@ class WorseFunctionCompletor implements TolerantCompletor
         foreach ($functionNames as $functionName) {
             try {
                 yield $this->reflector->reflectFunction($functionName);
-            } catch (NotFound $e) {
+            } catch (NotFound) {
             }
         }
     }

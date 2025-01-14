@@ -3,13 +3,14 @@
 namespace Phpactor\Extension\LanguageServerCodeTransform\Tests\Unit\LspCommand;
 
 use Exception;
+use Generator;
 use PHPUnit\Framework\TestCase;
 use Phpactor\CodeTransform\Domain\Exception\TransformException;
 use Phpactor\CodeTransform\Domain\Refactor\ExtractExpression;
 use Phpactor\CodeTransform\Domain\SourceCode;
 use Phpactor\Extension\LanguageServerBridge\Converter\TextEditConverter;
 use Phpactor\Extension\LanguageServerCodeTransform\LspCommand\ExtractExpressionCommand;
-use Phpactor\LanguageServerProtocol\ApplyWorkspaceEditResponse;
+use Phpactor\LanguageServerProtocol\ApplyWorkspaceEditResult;
 use Phpactor\LanguageServerProtocol\MessageType;
 use Phpactor\LanguageServerProtocol\WorkspaceEdit;
 use Phpactor\LanguageServer\LanguageServerTesterBuilder;
@@ -37,7 +38,7 @@ class ExtractExpressionCommandTest extends TestCase
 
         [$tester, $builder] = $this->createTester($extractExpression);
         $tester->workspace()->executeCommand('extract_expression', [self::EXAMPLE_URI, 0, self::EXAMPLE_OFFSET]);
-        $builder->responseWatcher()->resolveLastResponse(new ApplyWorkspaceEditResponse(true));
+        $builder->responseWatcher()->resolveLastResponse(new ApplyWorkspaceEditResult(true));
 
         $applyEdit = $builder->transmitter()->filterByMethod('workspace/applyEdit')->shiftRequest();
 
@@ -74,11 +75,12 @@ class ExtractExpressionCommandTest extends TestCase
          ], $showMessage->params);
     }
 
-    public function provideExceptions(): array
+    /**
+     * @return Generator<class-string, array{Exception}>
+     */
+    public function provideExceptions(): Generator
     {
-        return [
-            TransformException::class => [ new TransformException('Error message!') ],
-        ];
+        yield TransformException::class => [ new TransformException('Error message!') ];
     }
 
     /**

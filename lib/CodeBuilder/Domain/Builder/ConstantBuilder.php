@@ -5,22 +5,16 @@ namespace Phpactor\CodeBuilder\Domain\Builder;
 use Phpactor\CodeBuilder\Domain\Prototype\Constant;
 use Phpactor\CodeBuilder\Domain\Prototype\UpdatePolicy;
 use Phpactor\CodeBuilder\Domain\Prototype\Value;
+use Phpactor\CodeBuilder\Domain\Prototype\Visibility;
 
 class ConstantBuilder extends AbstractBuilder implements NamedBuilder
 {
-    protected string $name;
+    protected Value $value;
 
-    /**
-     * @var mixed
-     */
-    protected $value;
+    private ?Visibility $visibility = null;
 
-    private ClassBuilder $parent;
-
-    public function __construct(ClassLikeBuilder $parent, string $name, $value)
+    public function __construct(private ClassLikeBuilder $parent, protected string $name, mixed $value)
     {
-        $this->parent = $parent;
-        $this->name = $name;
         $this->value = Value::fromValue($value);
     }
 
@@ -29,12 +23,20 @@ class ConstantBuilder extends AbstractBuilder implements NamedBuilder
         return [];
     }
 
+    public function visibility(string $visibility): ConstantBuilder
+    {
+        $this->visibility = Visibility::fromString($visibility);
+
+        return $this;
+    }
+
     public function build(): Constant
     {
         return new Constant(
             $this->name,
             $this->value,
-            UpdatePolicy::fromModifiedState($this->isModified())
+            $this->visibility,
+            UpdatePolicy::fromModifiedState($this->isModified()),
         );
     }
 

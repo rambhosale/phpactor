@@ -6,23 +6,19 @@ use Microsoft\PhpParser\Node;
 use Microsoft\PhpParser\Node\Expression\ScopedPropertyAccessExpression;
 use Microsoft\PhpParser\Node\Expression\Variable;
 use Phpactor\WorseReflection\Core\Inference\Frame;
-use Phpactor\WorseReflection\Core\Inference\NodeToTypeConverter;
 use Phpactor\WorseReflection\Core\Inference\NodeContext;
 use Phpactor\WorseReflection\Core\Inference\Resolver;
 use Phpactor\WorseReflection\Core\Inference\NodeContextResolver;
 use Phpactor\WorseReflection\Core\Inference\Resolver\MemberAccess\NodeContextFromMemberAccess;
+use Phpactor\WorseReflection\Core\TypeFactory;
+use Phpactor\WorseReflection\Core\Type\ClassStringType;
 use Phpactor\WorseReflection\Core\Type\ClassType;
 
 class ScopedPropertyAccessResolver implements Resolver
 {
-    private NodeToTypeConverter $nodeTypeConverter;
-
-    private NodeContextFromMemberAccess $nodeContextFromMemberAccess;
-
-    public function __construct(NodeToTypeConverter $nodeTypeConverter, NodeContextFromMemberAccess $nodeContextFromMemberAccess)
-    {
-        $this->nodeTypeConverter = $nodeTypeConverter;
-        $this->nodeContextFromMemberAccess = $nodeContextFromMemberAccess;
+    public function __construct(
+        private NodeContextFromMemberAccess $nodeContextFromMemberAccess
+    ) {
     }
 
     public function resolve(NodeContextResolver $resolver, Frame $frame, Node $node): NodeContext
@@ -45,7 +41,11 @@ class ScopedPropertyAccessResolver implements Resolver
             $name = $node->scopeResolutionQualifier->getText();
         }
 
-        $classType = $this->nodeTypeConverter->resolve($node, (string)$name);
+        $classType = $resolver->resolveNode($frame, $node->scopeResolutionQualifier)->type();
+
+        if ($classType instanceof ClassStringType && $classType->className()) {
+            $classType = TypeFactory::reflectedClass($resolver->reflector(), $classType->className());
+        }
 
         return $this->nodeContextFromMemberAccess->infoFromMemberAccess($resolver, $frame, $classType, $node);
     }

@@ -9,22 +9,26 @@ class TextNode extends Node
     ];
 
     /**
-     * @var Token[]
-     */
-    public array $tokens;
-
-    /**
      * @param Token[] $tokens
      */
-    public function __construct(array $tokens)
+    public function __construct(public array $tokens)
     {
-        $this->tokens = $tokens;
     }
 
     public function toString(): string
     {
-        return implode('', array_map(function (Token $token) {
+        return trim(implode('', array_filter(array_map(function (Token $token) {
+            if (in_array($token->type, [
+                Token::T_PHPDOC_OPEN,
+                Token::T_PHPDOC_CLOSE,
+                Token::T_ASTERISK,
+            ])) {
+                return false;
+            }
+            if (str_contains($token->value, "\n")) {
+                return ' ';
+            }
             return $token->value;
-        }, $this->tokens));
+        }, $this->tokens))));
     }
 }

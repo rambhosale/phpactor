@@ -2,12 +2,14 @@
 
 namespace Phpactor\Filesystem\Tests\Unit\Domain;
 
+use Generator;
 use PHPUnit\Framework\TestCase;
 use Phpactor\Filesystem\Domain\FilePath;
+use Phpactor\TextDocument\Exception\InvalidUriException;
+use Phpactor\TextDocument\TextDocumentUri;
 use RuntimeException;
 use SplFileInfo;
-use stdClass;
-use InvalidArgumentException;
+use Symfony\Component\Filesystem\Path;
 
 class FilePathTest extends TestCase
 {
@@ -16,8 +18,8 @@ class FilePathTest extends TestCase
      */
     public function testNotAbsolute(): void
     {
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('File path must be absolute, but "foobar" given');
+        $this->expectException(InvalidUriException::class);
+        $this->expectExceptionMessage('must be absolute');
         FilePath::fromString('foobar');
     }
 
@@ -28,16 +30,19 @@ class FilePathTest extends TestCase
     }
 
     /**
-     * @dataProvider provideUnknown
+     * @dataProvider provideFilePathOrString
      */
-    public function testFromUnknownWith($path, string $expectedPath): void
+    public function testFromFilePathOrString(FilePath|string $path, string $expectedPath): void
     {
-        $filePath = FilePath::fromUnknown($path);
+        $filePath = FilePath::fromFilePathOrString($path);
         $this->assertInstanceOf(FilePath::class, $filePath);
         $this->assertEquals($expectedPath, (string) $filePath);
     }
 
-    public function provideUnknown()
+    /**
+     * @return Generator<string,array{FilePath|string,string}>
+     */
+    public function provideFilePathOrString(): Generator
     {
         yield 'FilePath instance' => [
             FilePath::fromString('/foo.php'),
@@ -49,52 +54,45 @@ class FilePathTest extends TestCase
             '/foo.php'
         ];
 
-        yield 'URI string' => [
+        yield 'URI string (Unix style)' => [
             'file:///foo.php',
             '/foo.php',
         ];
 
-        yield 'array' => [
-            [ 'one', 'two' ],
-            '/one/two'
+        yield 'URI string (Windows style)' => [
+            'file:///C:/foo.php',
+            'C:/foo.php',
         ];
 
-        yield 'SplFileInfo' => [
-            new SplFileInfo(__FILE__),
-            __FILE__
+        yield 'PHAR string' => [
+            'phar:///foo.php',
+            '/foo.php',
         ];
     }
 
     /**
      * @dataProvider provideUnsupportedInput
      */
-    public function testThrowExceptionOnUnknowableType($input, string $expectedExceptionMessage): void
+    public function testThrowExceptionOnUnknowableType(string $input, string $expectedExceptionMessage): void
     {
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage($expectedExceptionMessage);
-        FilePath::fromUnknown($input);
+        FilePath::fromString($input);
     }
 
-    public function provideUnsupportedInput()
+    /**
+     * @return Generator<string,array{string,string}>
+     */
+    public function provideUnsupportedInput(): Generator
     {
-        yield 'object' => [
-            new stdClass(),
-            'Do not know',
-        ];
-
         yield 'unsupported scheme' => [
             'ftp://host/foo.php',
-            'Unsupported scheme "ftp" for path "ftp://host/foo.php"',
-        ];
-
-        yield 'malformed string' => [
-            'bar:///foo.php',
-            'Cannot guess path from "bar:///foo.php"',
+            'are supported', // only X schemes are supported
         ];
 
         yield 'URI without a path' => [
             'http://.?x=1&n',
-            'No path info from URI "http://.?x=1&n"',
+            'are supported', // only X schemes are supported
         ];
     }
 
@@ -171,5 +169,12 @@ class FilePathTest extends TestCase
         $this->assertTrue($path1->isNamed('foobar'));
         $this->assertTrue($path2->isNamed('foobar'));
         $this->assertFalse($path3->isNamed('foobar'));
+    }
+
+    public function testAsSplFileInfo(): void
+    {
+        $path1 = FilePath::fromSplFileInfo(new SplFileInfo((string)TextDocumentUri::fromString(__FILE__)));
+        self::assertEquals(Path::canonicalize(__FILE__), $path1->__toString());
+        self::assertEquals(Path::canonicalize(__FILE__), $path1->asSplFileInfo()->__toString());
     }
 }

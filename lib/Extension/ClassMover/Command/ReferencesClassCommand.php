@@ -18,17 +18,11 @@ use Phpactor\Extension\Core\Console\Handler\FormatHandler;
 
 class ReferencesClassCommand extends Command
 {
-    private ClassReferences $referenceFinder;
-
-    private DumperRegistry $dumperRegistry;
-
     public function __construct(
-        ClassReferences $referenceFinder,
-        DumperRegistry $dumperRegistry
+        private ClassReferences $referenceFinder,
+        private DumperRegistry $dumperRegistry
     ) {
         parent::__construct();
-        $this->referenceFinder = $referenceFinder;
-        $this->dumperRegistry = $dumperRegistry;
     }
 
     public function configure(): void
@@ -64,12 +58,12 @@ class ReferencesClassCommand extends Command
         $count = $this->renderTable($output, $results, 'references', $output->isDecorated());
 
         if ($replace) {
-            $output->write(PHP_EOL);
+            $output->write("\n");
             $output->writeln('<comment># Replacements:</>');
             $this->renderTable($output, $results, 'replacements', $output->isDecorated());
         }
 
-        $output->write(PHP_EOL);
+        $output->write("\n");
         $output->writeln(sprintf('%s reference(s)', $count));
 
         return 0;

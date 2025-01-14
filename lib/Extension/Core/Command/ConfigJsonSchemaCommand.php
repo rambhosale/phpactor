@@ -2,7 +2,7 @@
 
 namespace Phpactor\Extension\Core\Command;
 
-use Phpactor\Extension\Core\Model\JsonSchemaBuilder;
+use Phpactor\Extension\Configuration\Model\JsonSchemaBuilder;
 use RuntimeException;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -11,12 +11,9 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class ConfigJsonSchemaCommand extends Command
 {
-    private JsonSchemaBuilder $builder;
-
-    public function __construct(JsonSchemaBuilder $builder)
+    public function __construct(private JsonSchemaBuilder $builder)
     {
         parent::__construct();
-        $this->builder = $builder;
     }
 
     protected function configure(): void

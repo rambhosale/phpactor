@@ -8,26 +8,28 @@ use Microsoft\PhpParser\Node\Expression\AssignmentExpression;
 use Microsoft\PhpParser\Node\Expression\Variable;
 use Microsoft\PhpParser\Node\MethodDeclaration;
 use Microsoft\PhpParser\Node\PropertyDeclaration;
+use Microsoft\PhpParser\Node\Statement\ClassDeclaration;
+use Microsoft\PhpParser\Node\Statement\EnumDeclaration;
+use Microsoft\PhpParser\Node\Statement\InterfaceDeclaration;
+use Microsoft\PhpParser\Node\Statement\TraitDeclaration;
 use Microsoft\PhpParser\Token;
 use Phpactor\CodeBuilder\Adapter\TolerantParser\Edits;
 use Phpactor\CodeBuilder\Domain\Prototype\ClassLikePrototype;
 use Phpactor\CodeBuilder\Domain\Prototype\Type;
 use Phpactor\CodeBuilder\Domain\Renderer;
 use InvalidArgumentException;
+use Phpactor\TextDocument\TextEdit;
 
 abstract class ClassLikeUpdater
 {
-    protected Renderer $renderer;
-
     protected ClassMethodUpdater $methodUpdater;
 
-    public function __construct(Renderer $renderer)
+    public function __construct(protected Renderer $renderer)
     {
-        $this->renderer = $renderer;
         $this->methodUpdater = new ClassMethodUpdater($renderer);
     }
 
-    protected function resolvePropertyName(Node $property)
+    protected function resolvePropertyName(Node|Token $property): ?string
     {
         if ($property instanceof Variable) {
             return $property->getName();
@@ -43,6 +45,7 @@ abstract class ClassLikeUpdater
         ));
     }
 
+    /** @return array<Node> */
     abstract protected function memberDeclarations(Node $node): array;
 
     protected function updateProperties(Edits $edits, ClassLikePrototype $classPrototype, Node $classMembers): void
@@ -75,16 +78,16 @@ abstract class ClassLikeUpdater
         foreach ($classPrototype->properties()->notIn($existingPropertyNames) as $property) {
             // if property type exists then the last property has a docblock - add a line break
             if ($lastProperty instanceof PropertyDeclaration && $property->type() != Type::none()) {
-                $edits->after($lastProperty, PHP_EOL);
+                $edits->after($lastProperty, "\n");
             }
 
             $edits->after(
                 $lastProperty,
-                PHP_EOL . $edits->indent($this->renderer->render($property), 1)
+                "\n" . $edits->indent($this->renderer->render($property), 1)
             );
 
             if ($classPrototype->properties()->isLast($property) && $nextMember instanceof MethodDeclaration) {
-                $edits->after($lastProperty, PHP_EOL);
+                $edits->after($lastProperty, "\n");
             }
         }
     }
@@ -104,5 +107,20 @@ abstract class ClassLikeUpdater
         }
 
         return $insert;
+    }
+
+    /**
+     * @param ClassDeclaration|TraitDeclaration|EnumDeclaration|InterfaceDeclaration $classLikeDeclaration
+     */
+    protected function updateDocblock(Edits $edits, ClassLikePrototype $classPrototype, $classLikeDeclaration): void
+    {
+        if (!$classPrototype->docblock()->notNone()) {
+            return;
+        }
+        $edits->add(TextEdit::create(
+            $classLikeDeclaration->getFullStartPosition(),
+            strlen($classLikeDeclaration->getLeadingCommentAndWhitespaceText()),
+            $classPrototype->docblock()->__toString()
+        ));
     }
 }

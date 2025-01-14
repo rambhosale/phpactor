@@ -2,12 +2,14 @@
 
 namespace Phpactor\CodeTransform\Tests\Adapter\TolerantParser\ClassToFile\Transformer;
 
+use Generator;
 use Phpactor\ClassFileConverter\Adapter\Composer\ComposerFileToClass;
 use Phpactor\CodeTransform\Adapter\TolerantParser\ClassToFile\Transformer\ClassNameFixerTransformer;
 use Phpactor\CodeTransform\Domain\Exception\TransformException;
 use Phpactor\CodeTransform\Domain\SourceCode;
 use Phpactor\CodeTransform\Tests\Adapter\AdapterTestCase;
 use Phpactor\TestUtils\Workspace;
+use function Amp\Promise\wait;
 
 class ClassNameFixerTransformerTest extends AdapterTestCase
 {
@@ -30,14 +32,17 @@ class ClassNameFixerTransformerTest extends AdapterTestCase
             $this->workspace()->path($filePath)
         );
 
-        $diagnostics = $transformer->diagnostics($source);
+        $diagnostics = wait($transformer->diagnostics($source));
         $this->assertCount($diagnosticCount, $diagnostics);
-        $transformed = $transformer->transform($source);
+        $transformed = wait($transformer->transform($source));
 
         $this->assertEquals(trim($expected), trim($transformed->apply($source)));
     }
 
-    public function provideFixClassName()
+    /**
+     * @return Generator<string,array{string,string,int}>
+     */
+    public function provideFixClassName(): Generator
     {
         yield 'no op' => [
             'FileOne.php',
@@ -76,7 +81,7 @@ class ClassNameFixerTransformerTest extends AdapterTestCase
         $this->expectException(TransformException::class);
         $this->expectExceptionMessage('Source is not a file');
         $transformer = $this->createTransformer($this->workspace());
-        $transformed = $transformer->transform(SourceCode::fromString('hello'));
+        $transformed = wait($transformer->transform(SourceCode::fromString('hello')));
     }
 
     public function testOnEmptyFile(): void
@@ -88,14 +93,14 @@ class ClassNameFixerTransformerTest extends AdapterTestCase
         $expected = $workspace->getContents('expected');
         $transformer = $this->createTransformer($workspace);
         $source = SourceCode::fromStringAndPath('', $this->workspace()->path('/PathTo/FileOne.php'));
-        $transformed = $transformer->transform($source);
+        $transformed = wait($transformer->transform($source));
         $this->assertEquals(<<<'EOT'
             <?php
 
             namespace PathTo;
 
             EOT
-        , (string) $transformed->apply($source));
+            , (string) $transformed->apply($source));
     }
 
     private function initComposer(Workspace $workspace)

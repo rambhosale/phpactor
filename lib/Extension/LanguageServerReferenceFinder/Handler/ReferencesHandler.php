@@ -2,6 +2,7 @@
 
 namespace Phpactor\Extension\LanguageServerReferenceFinder\Handler;
 
+use function Amp\call;
 use Amp\Delayed;
 use Amp\Promise;
 use Phpactor\Extension\LanguageServerBridge\Converter\PositionConverter;
@@ -25,32 +26,14 @@ use Phpactor\TextDocument\TextDocumentBuilder;
 
 class ReferencesHandler implements Handler, CanRegisterCapabilities
 {
-    private Workspace $workspace;
-
-    private ReferenceFinder $finder;
-
-    private DefinitionLocator $definitionLocator;
-
-    private float $timeoutSeconds;
-
-    private LocationConverter $locationConverter;
-
-    private ClientApi $clientApi;
-
     public function __construct(
-        Workspace $workspace,
-        ReferenceFinder $finder,
-        DefinitionLocator $definitionLocator,
-        LocationConverter $locationConverter,
-        ClientApi $clientApi,
-        float $timeoutSeconds = 5.0
+        private Workspace $workspace,
+        private ReferenceFinder $finder,
+        private DefinitionLocator $definitionLocator,
+        private LocationConverter $locationConverter,
+        private ClientApi $clientApi,
+        private float $timeoutSeconds = 5.0
     ) {
-        $this->workspace = $workspace;
-        $this->finder = $finder;
-        $this->definitionLocator = $definitionLocator;
-        $this->timeoutSeconds = $timeoutSeconds;
-        $this->locationConverter = $locationConverter;
-        $this->clientApi = $clientApi;
     }
 
 
@@ -61,19 +44,22 @@ class ReferencesHandler implements Handler, CanRegisterCapabilities
         ];
     }
 
+    /**
+     * @return Promise<array<LspLocation>>
+     */
     public function references(
         TextDocumentIdentifier $textDocument,
         Position $position,
         ReferenceContext $context
     ): Promise {
-        return \Amp\call(function () use ($textDocument, $position, $context) {
+        return call(function () use ($textDocument, $position, $context) {
             $textDocument = $this->workspace->get($textDocument->uri);
             $phpactorDocument = TextDocumentBuilder::create(
                 $textDocument->text
             )->uri(
                 $textDocument->uri
             )->language(
-                $textDocument->languageId ?? 'php'
+                $textDocument->languageId
             )->build();
 
             $offset = PositionConverter::positionToByteOffset($position, $textDocument->text);
@@ -82,8 +68,8 @@ class ReferencesHandler implements Handler, CanRegisterCapabilities
             if ($context->includeDeclaration) {
                 try {
                     $potentialLocation = $this->definitionLocator->locateDefinition($phpactorDocument, $offset)->first()->location();
-                    $locations[] = new Location($potentialLocation->uri(), $potentialLocation->offset());
-                } catch (CouldNotLocateDefinition $notFound) {
+                    $locations[] = new Location($potentialLocation->uri(), $potentialLocation->range());
+                } catch (CouldNotLocateDefinition) {
                 }
             }
 
@@ -141,13 +127,11 @@ class ReferencesHandler implements Handler, CanRegisterCapabilities
     }
 
     /**
-     * @param Location[] $locations
+     * @param array<Location> $ranges
      * @return LspLocation[]
      */
-    private function toLocations(array $locations): array
+    private function toLocations(array $ranges): array
     {
-        return $this->locationConverter->toLspLocations(
-            (new Locations($locations))->sorted()
-        );
+        return $this->locationConverter->toLspLocations((new Locations($ranges))->sorted());
     }
 }

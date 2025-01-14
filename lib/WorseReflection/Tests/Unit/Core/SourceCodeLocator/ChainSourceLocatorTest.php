@@ -3,10 +3,10 @@
 namespace Phpactor\WorseReflection\Tests\Unit\Core\SourceCodeLocator;
 
 use PHPUnit\Framework\TestCase;
+use Phpactor\TextDocument\TextDocumentBuilder;
 use Phpactor\WorseReflection\Core\SourceCodeLocator;
 use Phpactor\WorseReflection\Core\ClassName;
 use Phpactor\WorseReflection\Core\SourceCodeLocator\ChainSourceLocator;
-use Phpactor\WorseReflection\Core\SourceCode;
 use Phpactor\WorseReflection\Core\Exception\SourceNotFound;
 use Prophecy\PhpUnit\ProphecyTrait;
 
@@ -31,7 +31,7 @@ class ChainSourceLocatorTest extends TestCase
      */
     public function testNoLocators(): void
     {
-        $this->expectException(\Phpactor\WorseReflection\Core\Exception\SourceNotFound::class);
+        $this->expectException(SourceNotFound::class);
         $this->locate([], ClassName::fromString('as'));
     }
 
@@ -40,7 +40,7 @@ class ChainSourceLocatorTest extends TestCase
      */
     public function testDelegateToFirst(): void
     {
-        $expectedSource = SourceCode::fromString('hello');
+        $expectedSource = TextDocumentBuilder::create('hello')->build();
         $class = ClassName::fromString('Foobar');
         $this->locator1->locate($class)->willReturn($expectedSource);
         $this->locator2->locate($class)->shouldNotBeCalled();
@@ -58,7 +58,7 @@ class ChainSourceLocatorTest extends TestCase
      */
     public function testDelegateToSecond(): void
     {
-        $expectedSource = SourceCode::fromString('hello');
+        $expectedSource = TextDocumentBuilder::create('hello')->build();
         $class = ClassName::fromString('Foobar');
         $this->locator1->locate($class)->willThrow(new SourceNotFound('Foo'));
         $this->locator2->locate($class)->willReturn($expectedSource);
@@ -76,9 +76,9 @@ class ChainSourceLocatorTest extends TestCase
      */
     public function testAllFail(): void
     {
-        $this->expectException(\Phpactor\WorseReflection\Core\Exception\SourceNotFound::class);
+        $this->expectException(SourceNotFound::class);
         $this->expectExceptionMessage('Could not find source with "Foobar"');
-        $expectedSource = SourceCode::fromString('hello');
+        $expectedSource = TextDocumentBuilder::create('hello')->build();
         $class = ClassName::fromString('Foobar');
         $this->locator1->locate($class)->willThrow(new SourceNotFound('Foo'));
         $this->locator2->locate($class)->willThrow(new SourceNotFound('Foo'));

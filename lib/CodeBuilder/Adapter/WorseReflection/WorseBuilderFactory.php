@@ -4,33 +4,32 @@ namespace Phpactor\CodeBuilder\Adapter\WorseReflection;
 
 use Phpactor\CodeBuilder\Domain\BuilderFactory;
 use Phpactor\CodeBuilder\Domain\Builder\ClassBuilder;
+use Phpactor\CodeBuilder\Domain\Builder\ClassLikeBuilder;
+use Phpactor\CodeBuilder\Domain\Builder\MethodBuilder;
+use Phpactor\CodeBuilder\Domain\Builder\SourceCodeBuilder;
 use Phpactor\CodeBuilder\Domain\Builder\TraitBuilder;
 use Phpactor\TextDocument\TextDocument;
 use Phpactor\TextDocument\TextDocumentBuilder;
+use Phpactor\WorseReflection\Core\ClassName;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionClass;
+use Phpactor\WorseReflection\Core\Reflection\ReflectionInterface;
+use Phpactor\WorseReflection\Core\Reflection\ReflectionClassLike;
+use Phpactor\WorseReflection\Core\Reflection\ReflectionMethod;
+use Phpactor\WorseReflection\Core\Reflection\ReflectionParameter;
+use Phpactor\WorseReflection\Core\Reflection\ReflectionProperty;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionTrait;
+use Phpactor\WorseReflection\Core\Reflection\ReflectionEnum;
+use Phpactor\WorseReflection\Core\Type;
 use Phpactor\WorseReflection\Core\Type\ArrayType;
 use Phpactor\WorseReflection\Reflector;
-use Phpactor\CodeBuilder\Domain\Builder\SourceCodeBuilder;
-use Phpactor\WorseReflection\Core\Reflection\ReflectionProperty;
-use Phpactor\WorseReflection\Core\Reflection\ReflectionMethod;
-use Phpactor\WorseReflection\Core\Type;
-use Phpactor\WorseReflection\Core\Reflection\ReflectionClassLike;
-use Phpactor\WorseReflection\Core\ClassName;
-use Phpactor\WorseReflection\Core\Reflection\ReflectionParameter;
-use Phpactor\CodeBuilder\Domain\Builder\MethodBuilder;
-use Phpactor\CodeBuilder\Domain\Builder\ClassLikeBuilder;
 
 class WorseBuilderFactory implements BuilderFactory
 {
-    private Reflector $reflector;
-
-    public function __construct(Reflector $reflector)
+    public function __construct(private Reflector $reflector)
     {
-        $this->reflector = $reflector;
     }
 
-    public function fromSource($source): SourceCodeBuilder
+    public function fromSource(TextDocument|string $source): SourceCodeBuilder
     {
         if (!$source instanceof TextDocument) {
             $source = TextDocumentBuilder::create($source)
@@ -41,20 +40,24 @@ class WorseBuilderFactory implements BuilderFactory
         $classes = $this->reflector->reflectClassesIn($source);
         $builder = SourceCodeBuilder::create();
 
-        foreach ($classes as $class) {
-            if ($class->isClass()) {
-                $this->build('class', $builder, $class);
+        foreach ($classes as $classLike) {
+            if ($classLike instanceof ReflectionClass) {
+                $this->build('class', $builder, $classLike);
                 continue;
             }
 
-            if ($class->isInterface()) {
-                $this->build('interface', $builder, $class);
+            if ($classLike instanceof ReflectionInterface) {
+                $this->build('interface', $builder, $classLike);
                 continue;
             }
 
-            if ($class->isTrait()) {
-                $this->build('trait', $builder, $class);
+            if ($classLike instanceof ReflectionTrait) {
+                $this->build('trait', $builder, $classLike);
                 continue;
+            }
+
+            if ($classLike instanceof ReflectionEnum) {
+                $this->build('enum', $builder, $classLike);
             }
         }
 
@@ -91,7 +94,7 @@ class WorseBuilderFactory implements BuilderFactory
         $propertyBuilder->visibility((string) $property->visibility());
 
         $type = $property->inferredType();
-        if (($type->isDefined())) {
+        if ($type->isDefined()) {
             $this->importClassesForMemberType($classBuilder, $property->class()->name(), $type);
             $propertyBuilder->type($type->short(), $type);
             $propertyBuilder->docType((string)$type);
@@ -153,12 +156,12 @@ class WorseBuilderFactory implements BuilderFactory
 
     private function importClassesForMemberType(ClassLikeBuilder $classBuilder, ClassName $classType, Type $type): void
     {
-        foreach ($type->classNamedTypes() as $type) {
-            if ($classType->namespace() == $type->name()->namespace()) {
+        foreach ($type->allTypes()->classLike() as $types) {
+            if ($classType->namespace() == $types->name()->namespace()) {
                 return;
             }
 
-            $classBuilder->end()->use($type->name()->full());
+            $classBuilder->end()->use($types->name()->full());
         }
     }
 }

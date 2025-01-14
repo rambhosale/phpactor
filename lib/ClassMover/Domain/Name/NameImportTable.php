@@ -7,27 +7,27 @@ use RuntimeException;
 
 class NameImportTable
 {
-    private $namespace;
+    /** @var ImportedNameReference[] */
+    private array $importedNameRefs = [];
 
-    private $importedNameRefs = [];
-
-    private function __construct(Namespace_ $namespace, array $importedNamespaceNames)
+    /** @param ImportedNameReference[] $importedNamespaceNames */
+    private function __construct(private Namespace_ $namespace, array $importedNamespaceNames)
     {
-        $this->namespace = $namespace;
         foreach ($importedNamespaceNames as $importedNamespaceName) {
             $this->addImportedName($importedNamespaceName);
         }
     }
 
+    /** @param ImportedNameReference[] $importedNameRefs */
     public static function fromImportedNameRefs(Namespace_ $namespace, array $importedNameRefs): NameImportTable
     {
         return new self($namespace, $importedNameRefs);
     }
 
-    public function isNameImported(QualifiedName $name)
+    public function isNameImported(QualifiedName $name): bool
     {
         foreach ($this->importedNameRefs as $importedNameRef) {
-            if ($importedNameRef->importedName()->qualifies($name)) {
+            if ($importedNameRef->importedName()?->qualifies($name)) {
                 return true;
             }
         }
@@ -38,7 +38,7 @@ class NameImportTable
     public function getImportedNameRefFor(QualifiedName $name): ?ImportedNameReference
     {
         foreach ($this->importedNameRefs as $importedNameRef) {
-            if ($importedNameRef->importedName()->qualifies($name)) {
+            if ($importedNameRef->importedName()?->qualifies($name)) {
                 return $importedNameRef;
             }
         }
@@ -49,15 +49,15 @@ class NameImportTable
         ));
     }
 
-    public function resolveClassName(QualifiedName $name)
+    public function resolveClassName(QualifiedName $name): FullyQualifiedName
     {
         foreach ($this->importedNameRefs as $importedNameRef) {
-            if ($importedNameRef->importedName()->qualifies($name)) {
+            if ($importedNameRef->importedName()?->qualifies($name)) {
                 return $importedNameRef->importedName()->qualify($name);
             }
         }
 
-        if (0 === strpos($name->__toString(), '\\')) {
+        if (str_starts_with($name->__toString(), '\\')) {
             return FullyQualifiedName::fromString($name->__toString());
         }
 
@@ -69,11 +69,16 @@ class NameImportTable
         return $this->namespace;
     }
 
-    public function isAliased(QualifiedName $name)
+    public function isAliased(QualifiedName $name): bool
     {
         foreach ($this->importedNameRefs as $importedNameRef) {
-            if ($importedNameRef->importedName()->qualifies($name)) {
-                return $importedNameRef->importedName()->isAlias();
+            $importedName = $importedNameRef->importedName();
+            if ($importedName === null) {
+                continue;
+            }
+
+            if ($importedName->qualifies($name)) {
+                return $importedName->isAlias();
             }
         }
 

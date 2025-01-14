@@ -4,26 +4,18 @@ namespace Phpactor\Extension\WorseReflectionExtra\Application;
 
 use Phpactor\Extension\Core\Application\Helper\ClassFileNormalizer;
 use Phpactor\WorseReflection\Core\ClassName;
+use Phpactor\WorseReflection\Core\Reflection\ReflectionEnum;
 use Phpactor\WorseReflection\Reflector;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionClass;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionMethod;
-use Phpactor\WorseReflection\Core\Reflection\ReflectionProperty;
 
 class ClassReflector
 {
     const FOOBAR = 'foo';
 
-    private ClassFileNormalizer $classFileNormalizer;
-
-    private Reflector $reflector;
-
     // rename compositetransformer => classToFileConverter
-    public function __construct(
-        ClassFileNormalizer $classFileNormalizer,
-        Reflector $reflector
-    ) {
-        $this->classFileNormalizer = $classFileNormalizer;
-        $this->reflector = $reflector;
+    public function __construct(private ClassFileNormalizer $classFileNormalizer, private Reflector $reflector)
+    {
     }
 
     /**
@@ -68,7 +60,7 @@ class ClassReflector
                 }
                 $paramInfo[] = '$' . $parameter->name();
                 if ($parameter->default()->isDefined()) {
-                    $paramInfo[] = ' = ' . str_replace(PHP_EOL, '', var_export($parameter->default()->value(), true));
+                    $paramInfo[] = ' = ' . str_replace("\n", '', var_export($parameter->default()->value(), true));
                 }
                 $paramInfos[] = implode(' ', $paramInfo);
 
@@ -94,7 +86,7 @@ class ClassReflector
             $return['methods'][$method->name()]['docblock'] = $method->docblock()->formatted();
         }
 
-        if (false === $reflection->isTrait()) {
+        if (!$reflection instanceof ReflectionEnum) {
             foreach ($reflection->constants() as $constant) {
                 $return['constants'][$constant->name()] = [
                     'name' => $constant->name()
@@ -107,7 +99,6 @@ class ClassReflector
             return $return;
         }
 
-        /** @var $property ReflectionProperty */
         foreach ($reflection->properties() as $property) {
             $propertyType = $property->inferredType();
             $return['properties'][$property->name()] = [

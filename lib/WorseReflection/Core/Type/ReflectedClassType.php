@@ -18,14 +18,8 @@ use Phpactor\WorseReflection\Core\Type\Resolver\IterableTypeResolver;
 
 class ReflectedClassType extends ClassType
 {
-    public ClassName $name;
-
-    protected ClassReflector $reflector;
-
-    public function __construct(ClassReflector $reflector, ClassName $name)
+    public function __construct(protected ClassReflector $reflector, public ClassName $name)
     {
-        $this->name = $name;
-        $this->reflector = $reflector;
         $this->members = ClassLikeReflectionMemberCollection::empty();
     }
 
@@ -71,6 +65,15 @@ class ReflectedClassType extends ClassType
             return Trinary::true();
         }
 
+        if ($type instanceof UnionType) {
+            foreach ($type->types as $uType) {
+                if (!$this->accepts($uType)->isTrue()) {
+                    return Trinary::false();
+                }
+            }
+            return Trinary::true();
+        }
+
         if (!$type instanceof ClassType) {
             return Trinary::false();
         }
@@ -83,11 +86,11 @@ class ReflectedClassType extends ClassType
 
         try {
             $reflectedThat = $this->reflector->reflectClassLike($type->name());
-        } catch (NotFound $e) {
+        } catch (NotFound) {
             return Trinary::maybe();
         }
 
-        if ($reflectedThis instanceof ReflectionInterface) {
+        if ($reflectedThis instanceof ReflectionInterface || $reflectedThis instanceof ReflectionClass) {
             return Trinary::fromBoolean($reflectedThat->isInstanceOf($reflectedThis->name()));
         }
 
@@ -111,7 +114,7 @@ class ReflectedClassType extends ClassType
     {
         try {
             return $this->reflector->reflectClassLike($this->name());
-        } catch (NotFound $notFound) {
+        } catch (NotFound $e) {
         }
         return null;
     }
@@ -210,7 +213,7 @@ class ReflectedClassType extends ClassType
 
         try {
             return $reflection->methods()->get('__invoke')->inferredType();
-        } catch (NotFound $notFound) {
+        } catch (NotFound) {
             return TypeFactory::undefined();
         }
     }

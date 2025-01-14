@@ -2,6 +2,7 @@
 
 namespace Phpactor\Extension\LanguageServerPhpstan\Model;
 
+use function Amp\call;
 use Amp\Process\Process;
 use Amp\Promise;
 use Phpactor\LanguageServerProtocol\Diagnostic;
@@ -12,24 +13,13 @@ class PhpstanProcess
 {
     private DiagnosticsParser $parser;
 
-    private string $cwd;
-
-    private LoggerInterface $logger;
-
-    private string $phpstanBin;
-
-    private PhpstanConfig $config;
-
     public function __construct(
-        string $cwd,
-        PhpstanConfig $config,
-        LoggerInterface $logger,
-        DiagnosticsParser $parser = null
+        private string $cwd,
+        private PhpstanConfig $config,
+        private LoggerInterface $logger,
+        ?DiagnosticsParser $parser = null
     ) {
         $this->parser = $parser ?: new DiagnosticsParser();
-        $this->cwd = $cwd;
-        $this->logger = $logger;
-        $this->config = $config;
     }
 
     /**
@@ -37,8 +27,9 @@ class PhpstanProcess
      */
     public function analyse(string $filename): Promise
     {
-        return \Amp\call(function () use ($filename) {
+        return call(function () use ($filename) {
             $args = [
+                PHP_BINARY,
                 $this->config->phpstanBin(),
                 'analyse',
                 '--no-progress',
@@ -49,13 +40,19 @@ class PhpstanProcess
             if (null !== $this->config->level()) {
                 $args[] = '--level=' . (string)$this->config->level();
             }
+            if (null !== $this->config->config()) {
+                $args[] = '--configuration=' . (string)$this->config->config();
+            }
+            if (null !== $this->config->memLimit()) {
+                $args[] = '--memory-limit=' . (string)$this->config->memLimit();
+            }
             $process = new Process($args, $this->cwd);
 
             $start = microtime(true);
             $pid = yield $process->start();
 
-            $stdout = yield buffer($process->getStdout());
-            $stderr = yield buffer($process->getStderr());
+            $stdout = buffer($process->getStdout());
+            $stderr = buffer($process->getStderr());
 
             $exitCode = yield $process->join();
 
@@ -63,7 +60,7 @@ class PhpstanProcess
                 $this->logger->error(sprintf(
                     'Phpstan exited with code "%s": %s',
                     $exitCode,
-                    $stderr
+                    yield $stderr
                 ));
 
                 return [];
@@ -75,6 +72,15 @@ class PhpstanProcess
                 $process->getCommand(),
                 $process->getWorkingDirectory(),
             ));
+
+            $stdout = yield $stdout;
+            if ($stdout === '') {
+                $this->logger->error(sprintf(
+                    'Phpstan exited with code "%s": But the standard output was empty',
+                    $exitCode,
+                ));
+                return [];
+            }
 
             return $this->parser->parse($stdout);
         });

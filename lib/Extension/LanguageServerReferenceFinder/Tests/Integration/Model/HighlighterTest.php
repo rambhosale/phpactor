@@ -11,6 +11,7 @@ use Phpactor\Extension\LanguageServerReferenceFinder\Model\Highlights;
 use Phpactor\LanguageServerProtocol\DocumentHighlightKind;
 use Phpactor\TestUtils\ExtractOffset;
 use Phpactor\TextDocument\ByteOffset;
+use function Amp\Promise\wait;
 
 class HighlighterTest extends TestCase
 {
@@ -25,10 +26,10 @@ class HighlighterTest extends TestCase
     {
         [$source, $offset] = ExtractOffset::fromSource($source);
         $assertion(
-            (new Highlighter(new Parser()))->highlightsFor(
+            wait((new Highlighter(new Parser()))->highlightsFor(
                 $source,
                 ByteOffset::fromInt((int)$offset)
-            )
+            ))
         );
     }
 
@@ -105,6 +106,7 @@ class HighlighterTest extends TestCase
 
         yield 'promoted property read' => [
             '<?php class Foobar { public function __construct(private $f<>oobar) {} function bar() { return $this->foobar; }',
+
             function (Highlights $highlights): void {
                 self::assertCount(2, $highlights);
                 self::assertEquals(DocumentHighlightKind::TEXT, $highlights->at(0)->kind);
@@ -190,6 +192,20 @@ class HighlighterTest extends TestCase
             function (Highlights $highlights): void {
                 self::assertCount(2, $highlights);
                 self::assertEquals(DocumentHighlightKind::TEXT, $highlights->at(0)->kind);
+            }
+        ];
+
+        yield 'class in use statement' => [
+            '<?php use SomeNamespace\Foo; echo SomeNamespace\Fo<>o::class;',
+            function (Highlights $highlights): void {
+                self::assertCount(2, $highlights);
+            }
+        ];
+
+        yield 'class alias in use statement' => [
+            '<?php use Foo as Test; echo Tes<>t::class;',
+            function (Highlights $highlights): void {
+                self::assertCount(2, $highlights);
             }
         ];
     }

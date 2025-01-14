@@ -10,18 +10,15 @@ use Phpactor\WorseReflection\Core\Inference\Frame;
 use Phpactor\WorseReflection\Core\DocBlock\DocBlockFactory;
 use Phpactor\WorseReflection\Core\Inference\FrameResolver;
 use Phpactor\WorseReflection\Core\DocBlock\DocBlockVar;
+use Phpactor\WorseReflection\Core\Inference\Variable as PhpactorVariable;
 use Phpactor\WorseReflection\Core\Inference\Walker;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionScope as PhpactorReflectionScope;
 use Phpactor\WorseReflection\Core\Type;
 
 class VariableWalker implements Walker
 {
-    private DocBlockFactory $docblockFactory;
-
-    public function __construct(
-        DocBlockFactory $docblockFactory
-    ) {
-        $this->docblockFactory = $docblockFactory;
+    public function __construct(private DocBlockFactory $docblockFactory)
+    {
     }
 
 
@@ -79,6 +76,15 @@ class VariableWalker implements Walker
                 return $type;
             }
 
+            // there's a chance this will be redefined later, but define it now
+            // to ensure that type assertions can find a previous variable
+            $frame->locals()->add(new PhpactorVariable(
+                name: $var->name(),
+                offset: $node->getStartPosition(),
+                type: $type,
+                wasAssigned: false /** $wasAssigned bool */,
+                wasDefined: true /** $wasDefined bool */
+            ), $node->getStartPosition());
             $frame->varDocBuffer()->set('$' . $var->name(), $type);
         }
 

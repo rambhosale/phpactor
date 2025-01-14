@@ -13,26 +13,13 @@ use Symfony\Component\Console\Terminal;
 
 class ConfigDumpCommand extends Command
 {
-    private array $config;
-
-    private DumperRegistry $registry;
-
-    private PathCandidates $paths;
-
-    private Expanders $expanders;
-
     public function __construct(
-        array $config,
-        DumperRegistry $registry,
-        PathCandidates $paths,
-        Expanders $expanders
+        private array $config,
+        private DumperRegistry $registry,
+        private PathCandidates $paths,
+        private Expanders $expanders
     ) {
         parent::__construct();
-
-        $this->config = $config;
-        $this->registry = $registry;
-        $this->paths = $paths;
-        $this->expanders = $expanders;
     }
 
     public function configure(): void
@@ -55,7 +42,7 @@ class ConfigDumpCommand extends Command
     private function dumpMetaInformation(OutputInterface $output): void
     {
         $output->writeln('<info>Config files:</>');
-        $output->write(PHP_EOL);
+        $output->write("\n");
         foreach ($this->paths as $candidate) {
             if (!file_exists($candidate->path())) {
                 $output->write('  [✖]');
@@ -65,15 +52,15 @@ class ConfigDumpCommand extends Command
             $output->writeln(' ' .$candidate->path());
         }
 
-        $output->write(PHP_EOL);
+        $output->write("\n");
         $output->writeln('<info>File path tokens:</info>');
-        $output->write(PHP_EOL);
+        $output->write("\n");
         foreach ($this->expanders->toArray() as $tokenName => $value) {
             $output->writeln(sprintf('  <comment>%%%s%%</>: %s', $tokenName, $value));
         }
         $terminal = new Terminal();
-        $output->write(PHP_EOL);
+        $output->write("\n");
         $output->writeln(str_repeat('-', $terminal->getWidth()));
-        $output->write(PHP_EOL);
+        $output->write("\n");
     }
 }

@@ -6,7 +6,9 @@ Contents
 
    usage
    reference
+   tips
    integrations
+   development
    other
 
 .. toctree::

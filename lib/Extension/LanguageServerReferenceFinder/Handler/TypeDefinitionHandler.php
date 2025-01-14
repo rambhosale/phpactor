@@ -2,6 +2,7 @@
 
 namespace Phpactor\Extension\LanguageServerReferenceFinder\Handler;
 
+use function Amp\call;
 use Amp\Promise;
 use Phpactor\Extension\LanguageServerBridge\Converter\PositionConverter;
 use Phpactor\LanguageServerProtocol\Location;
@@ -20,24 +21,12 @@ use Phpactor\TextDocument\TextDocumentBuilder;
 
 class TypeDefinitionHandler implements Handler, CanRegisterCapabilities
 {
-    private TypeLocator $typeLocator;
-
-    private Workspace $workspace;
-
-    private LocationConverter $locationConverter;
-
-    private ClientApi $client;
-
     public function __construct(
-        Workspace $workspace,
-        TypeLocator $typeLocator,
-        LocationConverter $locationConverter,
-        ClientApi $client
+        private Workspace $workspace,
+        private TypeLocator $typeLocator,
+        private LocationConverter $locationConverter,
+        private ClientApi $client
     ) {
-        $this->typeLocator = $typeLocator;
-        $this->workspace = $workspace;
-        $this->locationConverter = $locationConverter;
-        $this->client = $client;
     }
 
     /**
@@ -51,13 +40,13 @@ class TypeDefinitionHandler implements Handler, CanRegisterCapabilities
     }
 
     /**
-     * @return Promise<Location>
+     * @return Promise<Location|null>
      */
     public function type(
         TextDocumentIdentifier $textDocument,
         Position $position
     ): Promise {
-        return \Amp\call(function () use ($textDocument, $position) {
+        return call(function () use ($textDocument, $position) {
             $textDocument = $this->workspace->get($textDocument->uri);
 
             $offset = PositionConverter::positionToByteOffset($position, $textDocument->text);
@@ -67,7 +56,7 @@ class TypeDefinitionHandler implements Handler, CanRegisterCapabilities
                     TextDocumentBuilder::create($textDocument->text)->uri($textDocument->uri)->language('php')->build(),
                     $offset
                 );
-            } catch (CouldNotLocateType $type) {
+            } catch (CouldNotLocateType) {
                 return null;
             }
 
@@ -83,9 +72,7 @@ class TypeDefinitionHandler implements Handler, CanRegisterCapabilities
             $item = yield $this->client->window()->showMessageRequest()->info('Goto type', ...$actions);
 
             if (!$item instanceof MessageActionItem) {
-                throw new CouldNotLocateType(
-                    'Client did not return an action item'
-                );
+                return null;
             }
 
             return $this->locationConverter->toLspLocation(

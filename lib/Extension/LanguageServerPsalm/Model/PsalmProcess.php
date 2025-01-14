@@ -2,9 +2,13 @@
 
 namespace Phpactor\Extension\LanguageServerPsalm\Model;
 
+use function Amp\call;
 use Amp\Process\Process;
+use Amp\Process\ProcessException;
 use Amp\Promise;
+use Phpactor\Amp\Process\ProcessUtil;
 use Phpactor\LanguageServerProtocol\Diagnostic;
+use RuntimeException;
 use function Amp\ByteStream\buffer;
 use Psr\Log\LoggerInterface;
 
@@ -12,22 +16,14 @@ class PsalmProcess
 {
     private DiagnosticsParser $parser;
 
-    private string $cwd;
-
-    private LoggerInterface $logger;
-
-    private PsalmConfig $config;
-
     public function __construct(
-        string $cwd,
-        PsalmConfig $config,
-        LoggerInterface $logger,
-        DiagnosticsParser $parser = null
+        private string $cwd,
+        private PsalmConfig $config,
+        private LoggerInterface $logger,
+        ?DiagnosticsParser $parser = null,
+        private int $timeoutSeconds = 10,
     ) {
         $this->parser = $parser ?: new DiagnosticsParser();
-        $this->cwd = $cwd;
-        $this->logger = $logger;
-        $this->config = $config;
     }
 
     /**
@@ -35,31 +31,60 @@ class PsalmProcess
      */
     public function analyse(string $filename): Promise
     {
-        return \Amp\call(function () use ($filename) {
-            $process = new Process([
+        return call(function () use ($filename) {
+            $command = [
+                PHP_BINARY,
                 $this->config->psalmBin(),
-                '--no-cache',
-                '--show-info=true',
-                '--output-format=json'
-            ], $this->cwd);
+                sprintf(
+                    '--show-info=%s',
+                    $this->config->shouldShowInfo() ? 'true' : 'false',
+                ),
+                '--output-format=json',
+            ];
+
+            $command = (function (array $command, ?int $errorLevel) {
+                if (null === $errorLevel) {
+                    return $command;
+                }
+                $command[] = sprintf('--error-level=%d', $errorLevel);
+                return $command;
+            })($command, $this->config->errorLevel());
+
+            $command = (function (array $command, ?int $threads) {
+                if (null === $threads) {
+                    return $command;
+                }
+                $command[] = sprintf('--threads=%d', $threads);
+                return $command;
+            })($command, $this->config->threads());
+
+            if (!$this->config->useCache()) {
+                $command[] = '--no-cache';
+            }
+            $command[] = $filename;
+
+            $process = new Process($command, $this->cwd);
 
             $start = microtime(true);
             $pid = yield $process->start();
 
-            $stdout = yield buffer($process->getStdout());
-            $stderr = yield buffer($process->getStderr());
+            ProcessUtil::killAfter($this->logger, $process, $this->timeoutSeconds);
 
-            $exitCode = yield $process->join();
-
-            if ($exitCode !== 0 && $exitCode !== 2) {
-                $this->logger->error(sprintf(
-                    'Psalm exited with code "%s": %s',
-                    $exitCode,
-                    $stderr
-                ));
-
+            try {
+                $exitCode = yield $process->join();
+            } catch (ProcessException $e) {
                 return [];
             }
+
+            if ($exitCode !== 0 && $exitCode !== 2) {
+                throw new RuntimeException(sprintf(
+                    'Psalm exited with code "%s": %s',
+                    $exitCode,
+                    yield buffer($process->getStderr())
+                ));
+            }
+
+            $stdout = yield buffer($process->getStdout());
 
             $this->logger->debug(sprintf(
                 'Psalm completed in %s: %s in %s ... checking for %s',

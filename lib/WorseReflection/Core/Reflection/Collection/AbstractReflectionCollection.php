@@ -13,16 +13,10 @@ use Traversable;
 abstract class AbstractReflectionCollection implements ReflectionCollection
 {
     /**
-     * @var array<array-key,T>
-     */
-    protected array $items = [];
-
-    /**
      * @param array<array-key,T> $items
      */
-    final protected function __construct(array $items)
+    final protected function __construct(protected array $items)
     {
-        $this->items = $items;
     }
 
     public function count(): int
@@ -91,13 +85,21 @@ abstract class AbstractReflectionCollection implements ReflectionCollection
      */
     public function first()
     {
-        if (empty($this->items)) {
+        if ($this->items === []) {
             throw new ItemNotFound(
                 'Collection is empty, cannot get the first item'
             );
         }
 
         return reset($this->items);
+    }
+
+    /**
+     * @return T|null
+     */
+    public function firstOrNull()
+    {
+        return reset($this->items) ?: null;
     }
 
     /**
@@ -109,6 +111,18 @@ abstract class AbstractReflectionCollection implements ReflectionCollection
             throw new ItemNotFound(
                 'Collection is empty, cannot get the last item'
             );
+        }
+
+        return end($this->items);
+    }
+
+    /**
+     * @return T|null
+     */
+    public function lastOrNull()
+    {
+        if (empty($this->items)) {
+            return null;
         }
 
         return end($this->items);
@@ -129,7 +143,7 @@ abstract class AbstractReflectionCollection implements ReflectionCollection
      */
     public function byMemberClass(string $fqn): ReflectionCollection
     {
-        return new static(array_filter($this->items, function (object $member) use ($fqn) {
+        return new static(array_filter($this->items, function ($member) use ($fqn) {
             return $member instanceof $fqn;
         }));
     }

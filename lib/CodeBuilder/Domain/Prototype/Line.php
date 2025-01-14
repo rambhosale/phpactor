@@ -4,14 +4,11 @@ namespace Phpactor\CodeBuilder\Domain\Prototype;
 
 final class Line
 {
-    private $line;
-
-    private function __construct($line)
+    private function __construct(private string $line)
     {
-        $this->line = $line;
     }
 
-    public function __toString()
+    public function __toString(): string
     {
         return $this->line;
     }

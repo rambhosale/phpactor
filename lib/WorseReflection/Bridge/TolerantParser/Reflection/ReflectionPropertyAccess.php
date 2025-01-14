@@ -5,31 +5,21 @@ namespace Phpactor\WorseReflection\Bridge\TolerantParser\Reflection;
 use Microsoft\PhpParser\Node\Expression\MemberAccessExpression;
 use Microsoft\PhpParser\Node\Expression\ScopedPropertyAccessExpression;
 use Phpactor\TextDocument\ByteOffsetRange;
-use Phpactor\WorseReflection\Core\Position;
 use Microsoft\PhpParser\Node;
 use Phpactor\WorseReflection\Core\Util\NodeUtil;
 
 class ReflectionPropertyAccess
 {
     /**
-     * @var ScopedPropertyAccessExpression|MemberAccessExpression
-     */
-    private $node;
-
-
-    /**
      * @param ScopedPropertyAccessExpression|MemberAccessExpression $node
      */
-    public function __construct(
-        Node $node
-    ) {
-        $this->node = $node;
+    public function __construct(private Node $node)
+    {
     }
 
-    public function position(): Position
+    public function position(): ByteOffsetRange
     {
-        return Position::fromFullStartStartAndEnd(
-            $this->node->getFullStartPosition(),
+        return ByteOffsetRange::fromInts(
             $this->node->getStartPosition(),
             $this->node->getEndPosition()
         );

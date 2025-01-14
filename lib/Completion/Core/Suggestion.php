@@ -33,54 +33,31 @@ class Suggestion
     const PRIORITY_MEDIUM = 127;
     const PRIORITY_LOW = 255;
 
-    private ?string $type;
-
-    private string $name;
-
-    /**
-     * @var null|string|Closure
-     */
-    private $shortDescription;
+    private string|Closure|null $shortDescription;
 
     private string $label;
 
-    private ?Range $range;
-
-    /**
-     * @var null|string|Closure
-     */
-    private $documentation;
-
-    private ?string $snippet;
-
-    private ?string $nameImport;
-
-    private ?int $priority;
+    private string|Closure|null $documentation;
 
     /**
      * @param null|string|Closure $documentation
      * @param null|string|Closure $shortDescription
      */
     private function __construct(
-        string $name,
-        ?string $type = null,
+        private string $name,
+        private ?string $type = null,
         $shortDescription = null,
-        ?string $nameImport = null,
+        private ?string $nameImport = null,
         ?string $label = null,
         $documentation = null,
-        ?Range $range = null,
-        ?string $snippet = null,
-        ?int $priority = null
+        private ?Range $range = null,
+        private ?string $snippet = null,
+        private ?int $priority = null,
+        private ?string $fqn = null,
     ) {
-        $this->type = $type;
-        $this->name = $name;
         $this->shortDescription = $shortDescription;
         $this->label = $label ?: $name;
-        $this->range = $range;
         $this->documentation = $documentation;
-        $this->snippet = $snippet;
-        $this->nameImport = $nameImport;
-        $this->priority = $priority;
     }
 
     public static function create(string $name): self
@@ -95,6 +72,7 @@ class Suggestion
      *   type?:string|null,
      *   class_import?:string|null,
      *   name_import?:string|null,
+     *   fqn?:string|null,
      *   label?:string|null,
      *   range?:Range|null,
      *   snippet?:string|null,
@@ -109,6 +87,7 @@ class Suggestion
             'type' => null,
             'class_import' => null,
             'name_import' => null,
+            'fqn' => null,
             'label' => null,
             'range' => null,
             'snippet' => null,
@@ -135,6 +114,7 @@ class Suggestion
             $options['range'],
             $options['snippet'],
             $options['priority'],
+            $options['fqn'],
         );
     }
 
@@ -152,6 +132,7 @@ class Suggestion
             'documentation' => $this->documentation(),
             'class_import' => $this->type() === self::TYPE_CLASS && $this->nameImport ? $this->nameImport : null,
             'name_import' => $this->nameImport,
+            'fqn' => $this->fqn,
             'range' => $this->range ? $this->range->toArray() : null,
 
             // removed
@@ -195,11 +176,11 @@ class Suggestion
     }
 
     /**
-     * @deprecated Use nameImport instead
+     * Return the FQN if the name should be imported.
      */
-    public function classImport(): ?string
+    public function nameImport(): ?string
     {
-        return $this->type() === self::TYPE_CLASS ? $this->nameImport : null;
+        return $this->nameImport;
     }
 
     /**
@@ -207,15 +188,7 @@ class Suggestion
      */
     public function fqn(): ?string
     {
-        return $this->nameImport();
-    }
-
-    /**
-     * @deprecated Use fqn()
-     */
-    public function nameImport(): ?string
-    {
-        return $this->nameImport;
+        return $this->fqn ?? $this->nameImport;
     }
 
     public function label(): string

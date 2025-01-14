@@ -2,7 +2,8 @@
 
 namespace Phpactor\Extension\LanguageServerCodeTransform\Tests\Unit\LspCommand;
 
-use Phpactor\LanguageServerProtocol\ApplyWorkspaceEditResponse;
+use Generator;
+use Phpactor\LanguageServerProtocol\ApplyWorkspaceEditResult;
 use Phpactor\LanguageServerProtocol\MessageType;
 use Phpactor\LanguageServer\LanguageServerTesterBuilder;
 use Phpactor\LanguageServer\Test\LanguageServerTester;
@@ -11,10 +12,10 @@ use Phpactor\TextDocument\TextDocumentLocator\InMemoryDocumentLocator;
 use Phpactor\WorseReflection\Core\Exception\CouldNotResolveNode;
 use Phpactor\CodeTransform\Domain\Exception\TransformException;
 use Phpactor\WorseReflection\Core\Exception\MethodCallNotFound;
-use Phpactor\CodeTransform\Domain\Refactor\GenerateMethod;
+use Phpactor\CodeTransform\Domain\Refactor\GenerateMember;
 use Phpactor\CodeTransform\Domain\SourceCode;
 use Phpactor\Extension\LanguageServerBridge\Converter\TextEditConverter;
-use Phpactor\Extension\LanguageServerCodeTransform\LspCommand\GenerateMethodCommand;
+use Phpactor\Extension\LanguageServerCodeTransform\LspCommand\GenerateMemberCommand;
 use Phpactor\LanguageServerProtocol\WorkspaceEdit;
 use Phpactor\TextDocument\TextDocumentEdits;
 use Phpactor\TextDocument\TextDocumentUri;
@@ -40,14 +41,14 @@ class GenerateMethodCommandTest extends TestCase
             new TextEdits(TextEdit::create(self::EXAMPLE_OFFSET, 1, 'test'))
         );
 
-        $generateMethod = $this->prophesize(GenerateMethod::class);
-        $generateMethod->generateMethod(Argument::type(SourceCode::class), self::EXAMPLE_OFFSET)
+        $generateMethod = $this->prophesize(GenerateMember::class);
+        $generateMethod->generateMember(Argument::type(SourceCode::class), self::EXAMPLE_OFFSET)
             ->shouldBeCalled()
             ->willReturn($textEdits);
 
         [$tester, $builder] = $this->createTester($generateMethod);
         $tester->workspace()->executeCommand('generate', [self::EXAMPLE_URI, self::EXAMPLE_OFFSET]);
-        $builder->responseWatcher()->resolveLastResponse(new ApplyWorkspaceEditResponse(true));
+        $builder->responseWatcher()->resolveLastResponse(new ApplyWorkspaceEditResult(true));
 
         $applyEdit = $builder->transmitter()->filterByMethod('workspace/applyEdit')->shiftRequest();
 
@@ -68,8 +69,8 @@ class GenerateMethodCommandTest extends TestCase
      */
     public function testFailedCall(Exception $exception): void
     {
-        $generateMethod = $this->prophesize(GenerateMethod::class);
-        $generateMethod->generateMethod(Argument::type(SourceCode::class), self::EXAMPLE_OFFSET)
+        $generateMethod = $this->prophesize(GenerateMember::class);
+        $generateMethod->generateMember(Argument::type(SourceCode::class), self::EXAMPLE_OFFSET)
             ->shouldBeCalled()
             ->willThrow($exception);
 
@@ -84,24 +85,26 @@ class GenerateMethodCommandTest extends TestCase
         ], $showMessage->params);
     }
 
-    public function provideExceptions(): array
+    /**
+     * @return Generator<class-string, array<Exception>>
+     */
+    public function provideExceptions(): Generator
     {
-        return [
-            TransformException::class => [ new TransformException('Error message!') ],
-            MethodCallNotFound::class => [ new MethodCallNotFound('Error message!') ],
-            CouldNotResolveNode::class => [ new CouldNotResolveNode('Error message!') ],
-        ];
+        yield TransformException::class => [ new TransformException('Error message!') ];
+        yield MethodCallNotFound::class => [ new MethodCallNotFound('Error message!') ];
+        yield CouldNotResolveNode::class => [ new CouldNotResolveNode('Error message!') ];
     }
 
     /**
-     * @return {LanguageServerTester,LanguageServerTesterBuilder]
+     * @param ObjectProphecy<GenerateMember> $generateMethod
+     * @return array{LanguageServerTester,LanguageServerTesterBuilder}
      */
     private function createTester(ObjectProphecy $generateMethod): array
     {
         $builder = LanguageServerTesterBuilder::createBare()
             ->enableTextDocuments()
             ->enableCommands();
-        $builder->addCommand('generate', new GenerateMethodCommand(
+        $builder->addCommand('generate', new GenerateMemberCommand(
             $builder->clientApi(),
             $builder->workspace(),
             $generateMethod->reveal(),

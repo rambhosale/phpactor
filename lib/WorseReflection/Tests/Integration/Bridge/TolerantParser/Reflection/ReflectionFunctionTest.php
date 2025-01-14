@@ -2,10 +2,12 @@
 
 namespace Phpactor\WorseReflection\Tests\Integration\Bridge\TolerantParser\Reflection;
 
+use Generator;
+use Phpactor\TextDocument\TextDocumentBuilder;
 use Phpactor\WorseReflection\Core\TypeFactory;
 use Phpactor\WorseReflection\Tests\Integration\IntegrationTestCase;
 use Closure;
-use Phpactor\WorseReflection\Core\Position;
+use Phpactor\TextDocument\ByteOffsetRange;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionFunction;
 
 class ReflectionFunctionTest extends IntegrationTestCase
@@ -15,11 +17,12 @@ class ReflectionFunctionTest extends IntegrationTestCase
      */
     public function testReflects(string $source, string $functionName, Closure $assertion): void
     {
+        $source = TextDocumentBuilder::fromUnknown($source);
         $functions = $this->createReflector($source)->reflectFunctionsIn($source);
         $assertion($functions->get($functionName));
     }
 
-    public function provideReflectsFunction()
+    public function provideReflectsFunction(): Generator
     {
         yield 'single function with no params' => [
             <<<'EOT'
@@ -30,7 +33,7 @@ class ReflectionFunctionTest extends IntegrationTestCase
                 EOT
             , 'hello', function (ReflectionFunction $function): void {
                 $this->assertEquals('hello', $function->name());
-                $this->assertEquals(Position::fromStartAndEnd(6, 26), $function->position());
+                $this->assertEquals(ByteOffsetRange::fromInts(6, 26), $function->position());
             }
         ];
 

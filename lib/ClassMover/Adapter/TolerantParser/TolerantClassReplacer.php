@@ -17,11 +17,8 @@ use Phpactor\TextDocument\TextEdits;
 
 class TolerantClassReplacer implements ClassReplacer
 {
-    private Updater $updater;
-
-    public function __construct(Updater $updater)
+    public function __construct(private Updater $updater)
     {
-        $this->updater = $updater;
     }
 
     public function replaceReferences(
@@ -36,7 +33,15 @@ class TolerantClassReplacer implements ClassReplacer
         $replacedImports = [];
 
         foreach ($classRefList as $classRef) {
-            assert($classRef instanceof ClassReference);
+            if ($classRef->name()->wasFullyQualified()) {
+                $edits[] = TextEdit::create(
+                    $classRef->position()->start(),
+                    $classRef->position()->length(),
+                    '\\'.$newName->__toString()
+                );
+                continue;
+            }
+
             if (false === $importClass) {
                 $importClass = $this->shouldImportClass($classRef, $originalName);
             }
@@ -62,6 +67,7 @@ class TolerantClassReplacer implements ClassReplacer
         });
 
         $edits = TextEdits::fromTextEdits($edits);
+        $source = Code::fromString($source);
         if (true === $importClass) {
             $edits = $edits->merge($this->addUseStatement($source, $newName));
         }
@@ -73,7 +79,7 @@ class TolerantClassReplacer implements ClassReplacer
         return $edits;
     }
 
-    private function replaceOriginalInstanceNamespace(NamespacedClassReferences $classRefList, FullyQualifiedName $newName)
+    private function replaceOriginalInstanceNamespace(NamespacedClassReferences $classRefList, FullyQualifiedName $newName): TextEdit
     {
         return TextEdit::create(
             $classRefList->namespaceRef()->position()->start(),
@@ -82,7 +88,7 @@ class TolerantClassReplacer implements ClassReplacer
         );
     }
 
-    private function shouldImportClass(ClassReference $classRef, FullyQualifiedName $originalName)
+    private function shouldImportClass(ClassReference $classRef, FullyQualifiedName $originalName): bool
     {
         if ($classRef->isImport()) {
             return false;
@@ -101,18 +107,21 @@ class TolerantClassReplacer implements ClassReplacer
         return $classRef->fullName()->equals($originalName);
     }
 
-    private function classIsTheOriginalInstance(ClassReference $classRef, $originalName)
+    private function classIsTheOriginalInstance(ClassReference $classRef, FullyQualifiedName $originalName): bool
     {
         return $classRef->isClassDeclaration() && $classRef->fullName()->equals($originalName);
     }
 
-    private function addUseStatement(TextDocument $source, FullyQualifiedName $newName): TextEdits
+    private function addUseStatement(Code $source, FullyQualifiedName $newName): TextEdits
     {
-        return $this->updater->textEditsFor(SourceCodeBuilder::create()->use($newName->__toString())->build(), Code::fromString($source->__toString()));
+        return $this->updater->textEditsFor(SourceCodeBuilder::create()->use($newName->__toString())->build(), $source);
     }
 
-    private function addNamespace(TextDocument $source, QualifiedName $qualifiedName): TextEdits
+    private function addNamespace(Code $source, QualifiedName $qualifiedName): TextEdits
     {
-        return $this->updater->textEditsFor(SourceCodeBuilder::create()->namespace($qualifiedName->__toString())->build(), Code::fromString($source->__toString()));
+        return $this->updater->textEditsFor(
+            SourceCodeBuilder::create()->namespace($qualifiedName->__toString())->build(),
+            $source
+        );
     }
 }

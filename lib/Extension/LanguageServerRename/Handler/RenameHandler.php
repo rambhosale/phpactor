@@ -2,6 +2,7 @@
 
 namespace Phpactor\Extension\LanguageServerRename\Handler;
 
+use function Amp\call;
 use Amp\Promise;
 use Phpactor\Extension\LanguageServerBridge\Converter\PositionConverter;
 use Phpactor\Extension\LanguageServerBridge\Converter\RangeConverter;
@@ -29,24 +30,12 @@ use function Amp\delay;
 
 class RenameHandler implements Handler, CanRegisterCapabilities
 {
-    private Renamer $renamer;
-
-    private ClientApi $clientApi;
-
-    private LocatedTextEditConverter $converter;
-
-    private TextDocumentLocator $documentLocator;
-
     public function __construct(
-        LocatedTextEditConverter $converter,
-        TextDocumentLocator $documentLocator,
-        Renamer $renamer,
-        ClientApi $clientApi
+        private LocatedTextEditConverter $converter,
+        private TextDocumentLocator $documentLocator,
+        private Renamer $renamer,
+        private ClientApi $clientApi
     ) {
-        $this->renamer = $renamer;
-        $this->clientApi = $clientApi;
-        $this->converter = $converter;
-        $this->documentLocator = $documentLocator;
     }
 
 
@@ -66,7 +55,7 @@ class RenameHandler implements Handler, CanRegisterCapabilities
      */
     public function rename(RenameParams $params): Promise
     {
-        return \Amp\call(function () use ($params) {
+        return call(function () use ($params) {
             $locatedEdits = [];
             $document = $document = $this->documentLocator->get(TextDocumentUri::fromString($params->textDocument->uri));
             $count = 0;
@@ -89,8 +78,10 @@ class RenameHandler implements Handler, CanRegisterCapabilities
 
                 return $this->resultToWorkspaceEdit($locatedEdits, $rename->getReturn());
             } catch (CouldNotRename $error) {
+                $previous = $error->getPrevious();
+
                 $this->clientApi->window()->showMessage()->error(sprintf(
-                    $error->getMessage() . $error->getPrevious()->getTraceAsString()
+                    $error->getMessage() . ($previous?->getTraceAsString() ?? '')
                 ));
 
                 return new WorkspaceEdit(null, []);
@@ -104,7 +95,7 @@ class RenameHandler implements Handler, CanRegisterCapabilities
     public function prepareRename(PrepareRenameParams $params): Promise
     {
         // https://microsoft.github.io/language-server-protocol/specification#textDocument_prepareRename
-        return \Amp\call(function () use ($params) {
+        return call(function () use ($params) {
             $range = $this->renamer->getRenameRange(
                 $document = $this->documentLocator->get(TextDocumentUri::fromString($params->textDocument->uri)),
                 PositionConverter::positionToByteOffset(

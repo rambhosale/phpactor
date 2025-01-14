@@ -13,14 +13,8 @@ use Phpactor\Indexer\Model\Record\MemberRecord;
 
 class MemberQuery implements IndexQuery
 {
-    private Index $index;
-
-    private RecordReferenceEnhancer $enhancer;
-
-    public function __construct(Index $index, RecordReferenceEnhancer $enhancer)
+    public function __construct(private Index $index, private RecordReferenceEnhancer $enhancer)
     {
-        $this->index = $index;
-        $this->enhancer = $enhancer;
     }
 
     public function get(string $identifier): ?MemberRecord
@@ -61,7 +55,11 @@ class MemberQuery implements IndexQuery
                     $memberReference = $this->enhancer->enhance($fileRecord, $memberReference);
                 }
 
-                $location = Location::fromPathAndOffset($fileRecord->filePath(), $memberReference->offset());
+                $location = Location::fromPathAndOffsets(
+                    $fileRecord->filePath() ?? '',
+                    $memberReference->start(),
+                    $memberReference->end()
+                );
 
                 if (null === $memberReference->contaninerType()) {
                     yield LocationConfidence::maybe($location);
@@ -72,7 +70,6 @@ class MemberQuery implements IndexQuery
                     yield LocationConfidence::not($location);
                     continue;
                 }
-
 
                 yield LocationConfidence::surely($location);
             }

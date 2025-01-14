@@ -70,7 +70,25 @@ abstract class AggregateType extends Type
             return TypeFactory::nullable($this->stripNullable());
         }
 
-        return $this;
+        $remove = [];
+        foreach ($this->types as $type1) {
+            foreach ($this->types as $type2) {
+                if ($type1 === $type2) {
+                    continue;
+                }
+
+                if ($type1->consumes($type2)->isTrue()) {
+                    $remove[] = $type2;
+                }
+            }
+        }
+
+        $type = $this;
+        foreach ($remove as $removeType) {
+            $type = $this->remove($removeType);
+        }
+
+        return $type;
     }
 
     abstract public function withTypes(Type ...$types): AggregateType;
@@ -103,12 +121,22 @@ abstract class AggregateType extends Type
         })))->reduce();
     }
 
-    public function toTypes(): Types
+    public function expandTypes(): Types
     {
         $types = new Types([]);
         foreach ($this->types as $type) {
-            $types = $types->merge($type->toTypes());
+            $types = $types->merge($type->expandTypes());
         }
+        return $types;
+    }
+
+    public function allTypes(): Types
+    {
+        $types = new Types([]);
+        foreach ($this->expandTypes() as $type) {
+            $types = $types->merge($type->allTypes());
+        }
+
         return $types;
     }
 

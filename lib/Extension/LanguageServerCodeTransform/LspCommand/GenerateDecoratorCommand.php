@@ -15,24 +15,15 @@ class GenerateDecoratorCommand implements Command
 {
     public const NAME = 'generate_decorator';
 
-    private ClientApi $clientApi;
-
-    private GenerateDecorator $generateDecorator;
-
-    private Workspace $workspace;
-
     public function __construct(
-        ClientApi $clientApi,
-        Workspace $workspace,
-        GenerateDecorator $generateDecorator
+        private ClientApi $clientApi,
+        private Workspace $workspace,
+        private GenerateDecorator $generateDecorator
     ) {
-        $this->clientApi = $clientApi;
-        $this->generateDecorator = $generateDecorator;
-        $this->workspace = $workspace;
     }
 
     /**
-     * @return Promise<ApplyWorkspaceEditResponse>
+     * @return Promise<ApplyWorkspaceEditResult>
      */
     public function __invoke(string $uri, string $interfaceFQN): Promise
     {

@@ -1,6 +1,7 @@
 /extensions
 /phpactor.schema.json
 /lib/Extension/WorseReflection/stubs
+/.phpbench
 
 # Composer
 /vendor
@@ -22,9 +23,6 @@
 
 # Logging
 /application.log
-
-# docs
-/doc/_build
 
 /.php-cs-fixer.cache
 /build

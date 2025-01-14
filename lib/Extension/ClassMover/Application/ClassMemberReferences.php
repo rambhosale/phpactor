@@ -16,36 +16,21 @@ use Phpactor\WorseReflection\Reflector;
 
 class ClassMemberReferences
 {
-    private FilesystemRegistry $filesystemRegistry;
-
-    private MemberFinder $memberFinder;
-
-    private ClassFileNormalizer $classFileNormalizer;
-
-    private Reflector $reflector;
-
-    private MemberReplacer $memberReplacer;
-
     public function __construct(
-        ClassFileNormalizer $classFileNormalizer,
-        MemberFinder $memberFinder,
-        MemberReplacer $memberReplacer,
-        FilesystemRegistry $filesystemRegistry,
-        Reflector $reflector
+        private ClassFileNormalizer $classFileNormalizer,
+        private MemberFinder $memberFinder,
+        private MemberReplacer $memberReplacer,
+        private FilesystemRegistry $filesystemRegistry,
+        private Reflector $reflector
     ) {
-        $this->classFileNormalizer = $classFileNormalizer;
-        $this->filesystemRegistry = $filesystemRegistry;
-        $this->memberFinder = $memberFinder;
-        $this->reflector = $reflector;
-        $this->memberReplacer = $memberReplacer;
     }
 
     public function findOrReplaceReferences(
         string $scope,
-        string $class = null,
-        string $memberName = null,
-        string $memberType = null,
-        string $replace = null,
+        ?string $class = null,
+        ?string $memberName = null,
+        ?string $memberType = null,
+        ?string $replace = null,
         bool $dryRun = false
     ) {
         $className = $class ? $this->classFileNormalizer->normalizeToClass($class) : null;
@@ -58,7 +43,7 @@ class ClassMemberReferences
         foreach ($filePaths as $filePath) {
             $references = $this->referencesInFile($filesystem, $filePath, $className, $memberName, $memberType, $replace, $dryRun);
 
-            if (empty($references['references']) && empty($references['risky_references'])) {
+            if ($references['references'] === [] && $references['risky_references'] === []) {
                 continue;
             }
 
@@ -77,7 +62,7 @@ class ClassMemberReferences
         string $memberName,
         string $memberType,
         string $replacement
-    ) {
+    ):string {
         $className = $class ? $this->classFileNormalizer->normalizeToClass($class) : null;
         $query = $this->createQuery($className, $memberName, $memberType);
 
@@ -88,15 +73,18 @@ class ClassMemberReferences
         return (string) $this->replaceReferencesInCode($source, $referenceList->withClasses(), $replacement);
     }
 
+    /**
+     * @return array{references: array<mixed>, risky_references: array<mixed>, replacements: array<mixed>}
+     */
     private function referencesInFile(
         Filesystem $filesystem,
         $filePath,
-        string $className = null,
-        string $memberName = null,
-        string $memberType = null,
-        string $replace = null,
+        ?string $className = null,
+        ?string $memberName = null,
+        ?string $memberType = null,
+        ?string $replace = null,
         bool $dryRun = false
-    ) {
+    ): array {
         $code = $filesystem->getContents($filePath);
 
         $query = $this->createQuery($className, $memberName, $memberType);
@@ -137,7 +125,10 @@ class ClassMemberReferences
         return $result;
     }
 
-    private function serializeReferenceList(string $code, MemberReferences $referenceList)
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function serializeReferenceList(string $code, MemberReferences $referenceList): array
     {
         $references = [];
         /** @var MemberReference $reference */
@@ -150,7 +141,10 @@ class ClassMemberReferences
         return $references;
     }
 
-    private function serializeReference(string $code, MemberReference $reference)
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializeReference(string $code, MemberReference $reference): array
     {
         [$lineNumber, $colNumber, $line] = $this->line($code, $reference->position()->start());
         return [
@@ -164,9 +158,12 @@ class ClassMemberReferences
         ];
     }
 
-    private function line(string $code, int $offset)
+    /**
+     * @return array{int, int, string}
+     */
+    private function line(string $code, int $offset):array
     {
-        $lines = explode(PHP_EOL, $code);
+        $lines = explode("\n", $code);
         $number = 0;
         $startPosition = 0;
 
@@ -192,7 +189,7 @@ class ClassMemberReferences
         return $this->memberReplacer->replaceMembers($code, $list, $replace);
     }
 
-    private function createQuery(string $className = null, string $memberName = null, $memberType = null)
+    private function createQuery(?string $className = null, ?string $memberName = null, $memberType = null): ClassMemberQuery
     {
         $query = ClassMemberQuery::create();
 
