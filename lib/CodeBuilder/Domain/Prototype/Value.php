@@ -4,14 +4,11 @@ namespace Phpactor\CodeBuilder\Domain\Prototype;
 
 class Value
 {
-    protected $value;
-
-    protected function __construct($value = null)
+    protected function __construct(protected $value = null)
     {
-        $this->value = $value;
     }
 
-    public static function fromValue($value)
+    public static function fromValue($value): static
     {
         return new static($value);
     }
@@ -21,7 +18,7 @@ class Value
         return $this->value;
     }
 
-    public function export()
+    public function export(): string
     {
         if ($this->value === null) {
             return 'null';

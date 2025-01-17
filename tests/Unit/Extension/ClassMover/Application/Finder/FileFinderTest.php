@@ -7,20 +7,27 @@ use PHPUnit\Framework\TestCase;
 use Phpactor\Extension\ClassMover\Application\Finder\FileFinder;
 use Phpactor\Filesystem\Domain\FileList;
 use Phpactor\Filesystem\Domain\Filesystem;
+use Phpactor\TextDocument\TextDocumentBuilder;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionClassLike;
-use Phpactor\WorseReflection\Core\SourceCode;
 use Phpactor\WorseReflection\ReflectorBuilder;
 use Prophecy\Argument;
 use Prophecy\PhpUnit\ProphecyTrait;
 use Prophecy\Prophecy\ObjectProphecy;
 use RuntimeException;
+use Phpactor\TextDocument\TextDocument;
 
 class FileFinderTest extends TestCase
 {
     use ProphecyTrait;
 
+    /**
+     * @var ObjectProphecy<Filesystem>
+     */
     private ObjectProphecy $filesystem;
 
+    /**
+    * @var ObjectProphecy<FileList>
+    */
     private ObjectProphecy $fileList;
 
     public function setUp(): void
@@ -67,24 +74,24 @@ class FileFinderTest extends TestCase
     public function testReturnsClassAndTraitFilePathsIfMemberIsPrivate(): void
     {
         $class = $this->reflectClass(
-            SourceCode::fromPathAndString('barfoo', 'trait Barbar {} class Foobar { use Barbar; private function foobar(){} }'),
+            TextDocumentBuilder::create('<?php trait Barbar {} class Foobar { use Barbar; private function foobar(){} }')->uri('file:///barfoo.php')->build(),
             'Foobar'
         );
         $files = $this->filesFor($class, 'foobar');
-        $this->assertEquals(FileList::fromFilePaths(['barfoo', 'barfoo'], $files), $files);
+        $this->assertEquals(FileList::fromFilePaths(['barfoo', 'barfoo']), $files);
     }
 
     public function testParentsTraitsAndInterfacesIfMemberIsProtected(): void
     {
         $class = $this->reflectClass(
-            SourceCode::fromPathAndString('barfoo', 'interface Inter1 {} class ParentClass {} trait Barbar {} class Foobar extends ParentClass implements Inter1 { use Barbar; protected function foobar(){} }'),
+            TextDocumentBuilder::create('<?php interface Inter1 {} class ParentClass {} trait Barbar {} class Foobar extends ParentClass implements Inter1 { use Barbar; protected function foobar(){} }')->uri('file:///barfoo')->build(),
             'Foobar'
         );
         $files = $this->filesFor($class, 'foobar');
-        $this->assertEquals(FileList::fromFilePaths(['barfoo', 'barfoo', 'barfoo', 'barfoo'], $files), $files);
+        $this->assertEquals(FileList::fromFilePaths(['barfoo', 'barfoo', 'barfoo', 'barfoo']), $files);
     }
 
-    private function filesFor(ReflectionClassLike $class = null, string $memberName = null)
+    private function filesFor(?ReflectionClassLike $class = null, ?string $memberName = null): FileList
     {
         return (new FileFinder())->filesFor($this->filesystem->reveal(), $class, $memberName);
     }
@@ -96,9 +103,12 @@ class FileFinderTest extends TestCase
         $this->fileList->phpFiles()->willReturn($this->fileList->reveal());
     }
 
-    private function reflectClass($source, string $name)
+    private function reflectClass(string|TextDocument $source, string $name): ReflectionClassLike
     {
-        $builder = ReflectorBuilder::create()->addSource(SourceCode::fromPathAndString('foobar', '<?php ' . $source));
+        if (is_string($source)) {
+            $source = '<?php ' . $source;
+        }
+        $builder = ReflectorBuilder::create()->addSource(TextDocumentBuilder::fromUnknown($source));
         return $builder->build()->reflectClassLike($name);
     }
 }

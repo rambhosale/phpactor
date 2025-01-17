@@ -5,7 +5,390 @@ Changelog
 
 Features:
 
+  - Support new expression without parenthesis #2811
+  - Support vscode evaluatable expressions #2905 @zobo
+
+## 2024-11-28.1
+
+Bug fixes:
+
+- Do not include the file scheme in when including/excluding files #2794
+
+## 2024-11-28
+
+Features:
+
+  - Show codes for all diagnostics and allow them to be ignored @dantleech
+    #2781
+
+Improvements:
+
+  - Do not highlight entire class for fix class/namespace name diagnostic
+    #2728 @dantleech
+  - Tolerate code action provider failures #2761 @dantleech
+  - Limit number of methods that are documented on classes to improve
+    completion/resolve performance for large classes #2768 @dantleech
+
+Bug fixes:
+
+  - Navigator: Fix attempt to create existing directories #2776 @bart-jaskulsi
+  - Fix goto constant within a trait #2784 @dantleech
+  - Preserve PHAR scheme when indexing PHAR stubs @dantleech #2754
+  - Fix duplicated types when updating methods @mamazu #2779
+
+## 2024-11-05
+
+Bug fixes:
+
+  - Docblock: support parsing quoted string literals as array valuyes #2730
+  - Tell WorseReflection about new definitions from the stdin for the
+    diagnostics process #2723
+  - Flush index on save (make latest changes available to diagnostic process) #2722
+  - Fix bad contextual filtering #2715 @dantleech
+  - Take optional parameters into account with conditional types #2700 @dantleech
+  - Fix import position when `declare` is present #2698 @dantleech
+  - Fix NULL error in Docblock parser #2693 @dantleech
+  - Handle "source not found" when resolving template map #2716 @dantleech
+
+Improvements:
+
+  - Allow exclude patterns to be set for diagnostics (e.g. `vendor/**/*`) #2705 @dantleech
+  - Improve formatting for override method #2702 @dantleech
+  - Offer completions on attributes not associated with class member body
+    #2695 @przepompownia
+  - Show prose associated with `@throws` tag #2694 @mamazu
+  - Support parsing generic variance e.g. `covariant` #2664 @dantleech
+  - Support opt-out of using temporary files with phpstan #2764 @tsterker
+
+Features:
+
+  - Add support for 8.3 typed class constants
+  - Basic support for `@{phpstan,psalm}-assert` #2720 @dantleech
+
+## 2024-06-30
+
+Features:
+
+  - PHAR Indexing #2412 #2611 @dantleech
+  - Override method refactor #2686 @dantleech
+
+Improvements:
+
+  - Do not use indexer when renaming private properties/methods #2672 @dantleech
+  - Fix contextual completion in constructor agrument position #2504
+  - Basic support for `array_reduce` stub #2576
+  - Support variadics in contextual completion #2603
+  - Allow use of `%project_root%` in index paths #2665 @mamazon
+  - Fix another `PHP_BINARY` avoid writing to `dev/null` and other windows fixes @MatmaRex
+  - Use `get_debug_type` @zonuexe
+  - Show strikethrough for deprecated diagnostics #2623 @mamazu
+  - Adding more type coverage #2606 #2614 @mamazu
+
+Bug fixes:
+
+  - Fix renaming attributed class members @przepompownia
+  - Do not error when PHPStan returns no output @mamazu
+  - Only filter new object expression names in contextual completion #2603
+  - Fixing include and exclude patterns #2593 @mamazu
+  - Fix missing @implements code action #2668 @dantleech
+  - Initialized properties don't appear in LSP document symbols #2678 @mamazu
+
+## 2024-03-09
+
+Features:
+
+  - Completion suggestions filtered by accepting type #2456
+  - Basic support for local type aliases #2462
+
+Improvements:
+
+  - Show enums in LSP document symbol provider #2575 @gmli
+  - PHPStan show tip if as a dignostic hint if available #2512
+  - Docblock completion, suggest `@throws` @przepompownia
+  - Suggest named parameters on attributes @mamazu
+  - Remove redundant documentation #2500 @einenlum
+  - Resolve inherited generic types #2474
+  - Allow additional CLI arguments to be passed to php code sniffer #2465
+  - Clear document diagnostic cache on save #2458
+  - Skip parent parameters on complete constructor #2471 @mamazu
+  - Support generics on `@mixin` #2463
+  - Remove "on develop warning" service #2533
+  - Disable the processing of includes/requires, it doesn't work very well but
+    it has massive performance impact on certain projects #2580
+  - Include project PHP and runtime version and LSP status
+  - Add `iterable` "generic" `@param` in docblock #2585
+  - Improved diagnostic engine #2584
+  - Ongoing windows compatiblity effort #2567 #2572 #2570 @MatmaRex
+  - Ignore unnecessary files in gitexport #2570 @zonuexe
+  - Improve ANSI test compatiblity #2521 @gerardroche
+  - More snippet support #2515 #2508 @przepompownia
+  - Add completion for `@throws` #2509 @przepompownia
+
+Bug fixes:
+
+  - Fix completion of constants in enums #2541 @eviljeks
+  - Fix `renderException` call in bin/phpactor #2548 @MatmaRex
+  - Psalm: fix exception handling #2587 @przepompownia
+  - Do not generalize generated return types (i.e. false instead of bool) #2588
+  - Fix diagnostic process concurrency and do not lint outdated files #2538
+  - Upgrade `amp/process` to fix #2516 thanks to @gerardroche
+  - Fix division by zero edge case
+  - Fix crash if referenced file no longer exists on class rename #2518
+  - Fix detection of import used relatively in an annotation #2539
+  - Fix PHAR crashing issue on PHP8.3 #2533
+  - Fix UTF-16 conversion for LSP #2530 #2557
+  - Fix support for Attributes on readonly classes #2493
+  - Fix `$this` undefined var false positive in anon. class #2469 @mamazu
+  - Fix `$argv` undefined var false positives #2468 @mamazu
+
+Documentation:
+
+  - Added Helix LSP instructions #2581 @lens0021
+  - Fix typos in Behat #2534 @vuon9
+  - Fix broken external links #2500 @einenlum
+
+## 2023-12-03
+
+Bug fixes:
+
+  - Support LSP document symbols in traits #2446 @lizhening
+  - Fix null variable name crash #2443
+  - Fix frame merging of include/require #2391
+  - Fix enum representation in method generation #2395
+  - Fix enum cases() not existing false-positive #2423
+  - Fix incorrect enum import #2400
+  - Fix undefined var false positive for arra unpacking #2403
+  - Fix autoloading class conflcits with test files #2535 @gerardroche
+  - Fix enum renaming in legacy renamer #2445
+  - Fix enum renaming on "new" renamer #2445
+  - Fix crash on resolveItem() caused by race condition (?) #2434
+  - Fix false positive for undefined var where vardoc not counting as variable definition #2437
+  - Render variadics as variadics in help, not as arrays #2448
+  - Fix representation of int-range min/max #2444
+  - Render default value for enum when filling object #2441
+
+Features:
+
+  - Generate enum cases and class constants #2422
+  - Generate enum match arms #2401
+
+Improvements:
+
+  - PHPStan: Support setting custom config path and memory limit @ungrim97
+  - Exclude tests from archive #2433
+
+Breaking changes:
+
+  - Drop support for PHP 8.0. Minimum version is now 8.1
+
+## 2023.09.24
+
+Bug fixes:
+
+  - Fix crash with `php-cs-fixer` when using strict types rule #2348
+  - Fix `null` error (and improve type safety) in the docblock parser #2379
+  - Fix undefined-var false positive for undeclared variables that have `@var` #2366
+  - Fix undefined-var false positive for pass by ref (again) #2361
+  - Do not crash lanugage server if LSP header cannot be parsed (log error
+    instead) #2373
+
+Improvements:
+
+  - Correctly implementing LSP ranges #2352 @mamazu
+  - Add mechanism to automatically trigger an index update when breaking changes
+    are made
+  - Method generation on emums @mamazu
+
+
+Improvements:
+
+  - Support single line comments #2350
+  - Do not promote parameters that are used in parent constructor #2119 @mamazu
+  - Improve detection of Xdebug @bart-jaskulsi #2347
+  - Improve plain docblock parsing #2345
+  - Generate `@param` tag for iterables #2343 @mamazu
+
+## 2023.08.06-1
+
+Bug fixes:
+
+  - Limit number of threads Psalm uses to 1 by default #
+  - Update file watching lib to handle "process already exited" errors
+
+## 2023.08.06
+
+Improvements:
+
+  - Improve Diagnostics: Run linters in parallel #2327
+  - Index documents on save #2326
+
+Bug fixes:
+
+  - Fix generic extends with templated argument #2295
+  - Do not report statically declared variables as undefined #2311
+  - Do not trigger function completion for incomplete opening PHP tag
+  - Fix PHP linter #2318
+  - Do not report undeclared variables that are passed by reference as undefined #2329 @mecha
+
+## 2023.06.17-1
+
+Bug fixes:
+
+  - Do not report globals or super globals as undefined #2302
+
+## 2023.06.17
+
+Features:
+
+  - Diagnostics and code action for fixing missing `@implements` and `@extends` #2112
+  - Diagnostic for undefined variables #2209
+  - Code action to suggest fixes for undefined variables (in case of typos) #2209
+  - PHPUnit: code action for adding `setUp` / `tearDown` #2180 @mamazu
+  - Making the completion label formatter configurable #2277 @mamazu
+  - Auto-reindex: unconditionally reindex modified files every N seconds
+    (default 5 minutes) - work around for missed file modification
+    notifications.
+
+Improvements:
+
+  - Revised getting started documentation #2282
+  - Support indexing PHP files that don't have a `.php` extension #2296
+  - Allow language server auto-configuration to be disabled #2159
+    (`language_server_configuration.auto_config`)
+  - Symfony: show and consider non-public services by default (e.g. in tests it's
+    possible to retrieve non-public services) #2263
+  - Support traits in enums #2256
+
+Bug fixes:
+
+  - Fix enum case completion #2284
+  - Fix error handling for responses from language client #2283
+  - Do not show named parameters after string literal argument #2259
+  - Fix "instanceof" behavior for statically reflected classes #2273
+  - Fix behavior when user cancels type selection on goto type #2270
+  - Fix docblock parsing of `array<'quoted'|'strings'>` #2264
+  - Fix constant declaration indexing with `define` #2249 @mamazu
+  - Fix use of class-string<Foo> variable as static scope resolution qualifier #2238
+  - URL decode root URI - fixes issues with special chars in path #2228
+  - Do not deduplicate suggestions of different types (e.g. prop/method with same name) #2214
+  - Fix list assignment #2226
+  - Support parsing interface clause on enums #2220
+  - Do not make fully qualified name usage relative in class-mover #2208 @mamazu
+  - Fix resolution of `self` type (esp. in relation to traits) #2116
+  - Fix different virtual member types with the same name replacing eachother #2108
+  - Specify maximum size (255 chars) for string literal types #2144
+  - Fix docblock parser with `$this` when used as generic argument #2092
+
+## 2023.04.10
+
+Features:
+
+  - Show references to new objects when finding references to `__construct` method #2194
+  - Support for inlay hints #2138
+  - Deprecation diagnostics #2120
+  - Auto configuration - automatically suggest and apply configuration #2114
+  - Transform to "promote" unassigned consturctor properties #2106
+  - Hierarchical namespace segment completion #2070
+  - Completion for promoted property visiblity #2087
+  - Option `language_server.diagnostic_outsource` to outsource diagnostics in separate process #2105
+
+Bug fixes:
+
+  - Also use in-memory files when enanching indexed records #2187
+  - Prophecy: Do not crash when used in trait #2129
+  - Prophecy: fixing chaining of methods via. `getObjectProphecy` #2122
+  - `new class-string<Foo>` now resolves to `new Foo` #2065
+  - Fix extract method within trait #2076 @mamazu
+  - Do not attempt to index classes whose names are reserved words #2098
+  - Fix typo in LanguageServerExtension::PARAM_FILE_EVENTS resulting in typo in documentation
+  - Fix parsing array types in `@param` Tags in doc blocks #2172
+
+Improvements:
+
+  - Only show completion suggestions for real attributes #2183, #2100 @mamazu @przepompownia
+  - Code action and formatting handlers now send progress notifications #2192
+  - Invalidate diagnostics cache only when document changes #2191
+  - Optimize analysis for scopes with many many assignments #2188
+  - Made some heavy blocking operations non-blocking (e.g. diagnostics, code
+    actions).
+  - ⚠ Removed frame sorting which increases radically in some cases, but may
+    also cause regressions #2179
+  - Psalm: Support for overriding the error level #2174
+  - Generating constructor at the top of the file #2113 @mamazu
+  - Include (complex) docblock params when generating method
+  - Take into account named parameters when "guessing" parameter names #2090
+  - Show full FQN for classes in hover #2081
+  - Upgrade to 3.17 of the language server protocol #2082
+  - Facilitate changing visiblity on promoted properties @mamazu
+  - Allow generation of constructor for Attributes.
+
+## 2023.01.21
+
+Bug fixes:
+
+  - Allow class completion within constant declaration in class #1985 @przepompownia
+  - Do not suggest return type on `__destruct` #1992
+  - Do not report Prophecy methods as "not found" #2006
+  - Do not add NULL to type list (fixes search bug) #2009
+  - Create a real package for the tolerant-parser fork and use it #2033
+  - Also highlight use statements when hovering on class #2039 @mamazu
+  - Fix priotity of "internal" stub locator - facilitating enum completion #2040
+  - Require posix extension #2042 @dacianb
+  - Fix evaluation of replacement assignments #1705
+  - Fix crash on missing token in Indexer #2049 @vlada-dudr
+  - Fix missing compact use name false positive #2052
+  - Fix `class-template<T>` when not in 1st arg position #2054
+
+Features:
+
+  - `@param` docblock generation
+  - Reintroduce the PHPUnit extension
+  - Support integer range type e.g. `int<0, max>` #2024
+
+Improvements:
+
+  - Support the Psalm cache #2046 @gbprod
+  - Support completion inside match expression #2051 @przepompownia
+  - Fixed typos in documentation #2050 @d-danilov
+  - Psalm Extension: allow `info` diagnostics to be hidden #2032 @gbprod
+  - Better docblock parsing and formatting #2004
+  - More liberal support for vendor tags #2011 @ging-dev
+  - Fix nested template type arguments #2016
+  - Fix importing of nested types #2009
+  - Reverts #1974 - which made the situation worse rather than better.
+  - Change default WR cache TTL from 5 seconds to 1 second to avoid race with
+    diagnostics timeout.
+  - Add return tags to existing docblocks #1995
+  - Naive support for attribute completion #2001 @przepompownia
+  - Support union type from class-string variadic generic
+
+## 2022.12.12
+
+Breaking changes:
+
+  - Minimum version of PHP changed to 8.0. **Phpactor will no longer run on PHP 7.4**.
+
+Features:
+
   - [lsp] Generate mutator @florian-merle
+
+Improvements:
+
+  - [wr] Fix inference of array subscript expressions #1961
+
+Bug fixes:
+
+  - [lsp] Prevent race condition that makes old changes get analyzed after new changes #1974
+  - [cmp] Constant visibility not taken into account for completion #1979 @przepompownia
+  - [rn] Fix crash on rename interface #1982 @nataneb32
+  - [wr] Fix crash on enum with custom methods #1966
+  - [ls] Log errors even if they are for a request @lumnn
+  - [ls] Do not include `results` key in JSON response when error @lumnn
+  - [lsp] Do not send workDoneProgress notifications to clients that do not
+    support it #1951
+  - [lsp] Fix highlighting on PHP 8.1 #1960
+  - [wr] Do not crash when encountering an array union operator #1971 @wouterj
+  - [wr] Fixing handling of HEREDOC in StringResolver #1977 @mamazu
 
 ## 2022.11.12
 
@@ -162,7 +545,7 @@ Features:
   - [cmp] Explicitly enable/disable completors and disable `keyword` completor by default.
   - [wr] Support `iterator_to_array`
   - [wr] Handle constant glob to union types (`@return Foo::BAR_*`).
-  - [lsp] show class category in offset hover info 
+  - [lsp] show class category in offset hover info
   - [lsp] jump to types in a union type
   - [wr] Type combination
   - [wr] Support for type assertions via. is_*, instanceof etc
@@ -300,7 +683,7 @@ Improvements:
 
   - [worse-reflection] Support for virtual methods in interfaces - @dantleech
   - [code-transform] Fix regression with importing from root namespace
- 
+
 ## 2020-06-09 (0.16.0)
 
 Features:
@@ -326,7 +709,7 @@ Improvements:
   - [language-server-bridge] Service to convert Phpactor Locations to LSP locations - @dantleech
   - [code-transform] Class import updates context name on alias - @dantleech
   - [documentation] Generate the configuration reference - @dantleech
-  - [completion-worse] Allow completors to be disabled via `completion_worse.disabled_completors` - @dantleech 
+  - [completion-worse] Allow completors to be disabled via `completion_worse.disabled_completors` - @dantleech
   - [indexer-extension] Validate search results (remove from search index if invalid).
   - [language-server] Exit session immediately if NULL given as CWD (instead of crashing).
   - [container] Adds command for introspecting the container (`container:dump`) - @dantleech
@@ -358,7 +741,7 @@ Features:
     processes) (#929) - @dantleech
   - [language-server] Included in the core - @dantleech
   - [indexer] Indexer included in the core - @dantleech
-  - [rpc] Add docblock prose to hover 
+  - [rpc] Add docblock prose to hover
   - [vim-plugin] Add support `:checkhealth` and provide `:PhpactorStatus` in
     terminal window (#974) - @elythyr
   - [ref-finder] Goto definition works for vars (https://github.com/phpactor/worse-reference-finder/pull/1) - @FatBoyXPC
@@ -768,7 +1151,7 @@ Improvements:
     instead defaulting to either composer or full-filesystem search depending
     on env).
   - [ClassMover] (RPC) Will update current (unsaved) source.
-  - [vim-plugin] Correctly handle expanding class when at beginning of word, #438 thanks @greg0ire 
+  - [vim-plugin] Correctly handle expanding class when at beginning of word, #438 thanks @greg0ire
   - [vim-plugin] Reload file before replacing contents, fixes #445
   - [vim-plugin] File references, do not show quick fix list if all references
     are in current file.
@@ -868,7 +1251,7 @@ Bugfixes:
    - [VimPlugin] Fixed goto definition, #398
    - [WorseReflection] [problem with name import](https://github.com/phpactor/worse-reflection/pull/37) (thanks @adeslade)
 
-## 0.1.0 
+## 0.1.0
 
 **2018-04-03**
 

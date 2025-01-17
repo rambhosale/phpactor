@@ -3,7 +3,8 @@
 namespace Phpactor\WorseReflection\Bridge\TolerantParser\Reflection;
 
 use Microsoft\PhpParser\Node\Expression\ArgumentExpression;
-use Phpactor\WorseReflection\Core\Position;
+use Microsoft\PhpParser\Token;
+use Phpactor\TextDocument\ByteOffsetRange;
 
 use Phpactor\WorseReflection\Core\Type;
 use Phpactor\WorseReflection\Core\ServiceLocator;
@@ -14,35 +15,34 @@ use Phpactor\WorseReflection\Core\Reflection\ReflectionArgument as CoreReflectio
 use Phpactor\WorseReflection\Core\Type\AggregateType;
 use Phpactor\WorseReflection\Core\Type\ClassType;
 use Phpactor\WorseReflection\Core\Type\MissingType;
+use Phpactor\WorseReflection\Core\Util\NodeUtil;
 use Phpactor\WorseReflection\TypeUtil;
 use RuntimeException;
 use Microsoft\PhpParser\Node\DelimitedList\ArgumentExpressionList;
 
 class ReflectionArgument implements CoreReflectionArgument
 {
-    private ServiceLocator $services;
-
-    private ArgumentExpression $node;
-
-    private Frame $frame;
-
-    public function __construct(ServiceLocator $services, Frame $frame, ArgumentExpression $node)
-    {
-        $this->services = $services;
-        $this->node = $node;
-        $this->frame = $frame;
+    public function __construct(
+        private ServiceLocator $services,
+        private Frame $frame,
+        private ArgumentExpression $node
+    ) {
     }
 
     public function guessName(): string
     {
+        if ($this->node->name instanceof Token) {
+            return NodeUtil::nameFromTokenOrQualifiedName($this->node, $this->node->name);
+        }
+
         if ($this->node->expression instanceof Variable) {
             $name = $this->node->expression->name->getText($this->node->getFileContents());
 
-            if (is_string($name) && substr($name, 0, 1) == '$') {
+            if (is_string($name) && str_starts_with($name, '$')) {
                 return substr($name, 1);
             }
 
-            return $name;
+            return (string)$name;
         }
 
         $type = $this->type();
@@ -51,7 +51,7 @@ class ReflectionArgument implements CoreReflectionArgument
             $stringify = function (Type $type) {
                 $type = $type->stripNullable();
                 if ($type instanceof ClassType) {
-                    return lcfirst($type->name->short());
+                    return lcfirst($type->short());
                 }
                 return lcfirst($type->toPhpString());
             };
@@ -67,26 +67,25 @@ class ReflectionArgument implements CoreReflectionArgument
 
     public function type(): Type
     {
-        return $this->info()->type();
+        return $this->nodeContext()->type();
     }
 
-    public function value()
+    public function value(): mixed
     {
-        return TypeUtil::valueOrNull($this->info()->type());
+        return TypeUtil::valueOrNull($this->nodeContext()->type());
     }
 
-    public function position(): Position
+    public function position(): ByteOffsetRange
     {
-        return Position::fromFullStartStartAndEnd(
-            $this->node->getFullStartPosition(),
+        return ByteOffsetRange::fromInts(
             $this->node->getStartPosition(),
             $this->node->getEndPosition()
         );
     }
 
-    private function info(): NodeContext
+    public function nodeContext(): NodeContext
     {
-        return $this->services->symbolContextResolver()->resolveNode($this->frame, $this->node);
+        return $this->services->nodeContextResolver()->resolveNode($this->frame, $this->node);
     }
 
     private function index(): int

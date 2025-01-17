@@ -5,6 +5,7 @@ namespace Phpactor\WorseReferenceFinder;
 use Exception;
 use Microsoft\PhpParser\Node;
 use Microsoft\PhpParser\Node\NamespaceUseClause;
+use Microsoft\PhpParser\Node\QualifiedName;
 use Microsoft\PhpParser\Node\SourceFileNode;
 use Microsoft\PhpParser\Parser;
 use Phpactor\ReferenceFinder\DefinitionLocator;
@@ -22,19 +23,10 @@ use Phpactor\WorseReflection\Reflector;
 
 class WorsePlainTextClassDefinitionLocator implements DefinitionLocator
 {
-    private Reflector $reflector;
-
-    private array $breakingChars;
-
     private Parser $parser;
 
-    public function __construct(Reflector $reflector, array $breakingChars = [])
+    public function __construct(private Reflector $reflector)
     {
-        $this->reflector = $reflector;
-        $this->breakingChars = $breakingChars ?: [
-            ' ',
-            '"', '\'', '|', '%', '(', ')', '[', ']',':',"\r\n", "\n", "\r"
-        ];
         $this->parser = new Parser();
     }
 
@@ -53,15 +45,12 @@ class WorsePlainTextClassDefinitionLocator implements DefinitionLocator
             ), 0, $notFound);
         }
 
-        $path = $reflectionClass->sourceCode()->path();
+        $path = $reflectionClass->sourceCode()->uri()?->path();
 
         return new TypeLocations([
             new TypeLocation(
                 $reflectionClass->type(),
-                new Location(
-                    TextDocumentUri::fromString($path),
-                    ByteOffset::fromInt($reflectionClass->position()->start())
-                )
+                new Location(TextDocumentUri::fromString($path), $reflectionClass->position())
             )
         ]);
     }
@@ -121,7 +110,7 @@ class WorsePlainTextClassDefinitionLocator implements DefinitionLocator
     {
         try {
             return $node->getImportTablesForCurrentScope();
-        } catch (Exception $e) {
+        } catch (Exception) {
         }
 
         foreach ($node->getDescendantNodes() as $node) {
@@ -131,7 +120,7 @@ class WorsePlainTextClassDefinitionLocator implements DefinitionLocator
                     continue;
                 }
                 return $imports;
-            } catch (Exception $e) {
+            } catch (Exception) {
             }
         }
 
@@ -141,17 +130,17 @@ class WorsePlainTextClassDefinitionLocator implements DefinitionLocator
     /**
      * As with resolve import table, we try our best.
      */
-    private function resolveNamespace(Node $node)
+    private function resolveNamespace(Node $node): string
     {
         try {
             return $this->namespaceFromNode($node);
-        } catch (Exception $e) {
+        } catch (Exception) {
         }
 
         foreach ($node->getDescendantNodes() as $node) {
             try {
                 return $this->namespaceFromNode($node);
-            } catch (Exception $e) {
+            } catch (Exception) {
             }
         }
 
@@ -166,7 +155,7 @@ class WorsePlainTextClassDefinitionLocator implements DefinitionLocator
 
         $name = $node->getNamespaceDefinition()->name;
 
-        if (null === $name) {
+        if (!$name instanceof QualifiedName) {
             return '';
         }
 

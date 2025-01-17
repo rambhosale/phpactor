@@ -9,23 +9,24 @@ use RuntimeException;
 
 class LazyAggregateProvider implements ListenerProviderInterface
 {
-    private ContainerInterface $container;
-
-    private array $serviceIds;
-
     private ?ListenerProviderAggregate $aggregateProvider = null;
 
-    public function __construct(ContainerInterface $container, array $serviceIds)
+    /**
+     * @param list<string> $serviceIds
+     */
+    public function __construct(private ContainerInterface $container, private array $serviceIds)
     {
-        $this->container = $container;
-        $this->serviceIds = $serviceIds;
     }
 
+    /**
+     * @return iterable<callable>
+     */
     public function getListenersForEvent(object $event): iterable
     {
         if (null === $this->aggregateProvider) {
             $this->aggregateProvider = new ListenerProviderAggregate();
             foreach ($this->serviceIds as $serviceId) {
+                /** @var object|null $listenerProvider */
                 $listenerProvider = $this->container->get($serviceId);
 
                 // if null assume that it was conditionally disabled

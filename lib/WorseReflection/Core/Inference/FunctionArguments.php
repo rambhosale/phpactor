@@ -14,22 +14,10 @@ use Traversable;
 class FunctionArguments implements IteratorAggregate, Countable
 {
     /**
-     * @var ArgumentExpression[]
-     */
-    private array $arguments;
-
-    private NodeContextResolver $resolver;
-
-    private Frame $frame;
-
-    /**
      * @param ArgumentExpression[] $arguments
      */
-    public function __construct(NodeContextResolver $resolver, Frame $frame, array $arguments)
+    public function __construct(private NodeContextResolver $resolver, private Frame $frame, private array $arguments)
     {
-        $this->arguments = $arguments;
-        $this->resolver = $resolver;
-        $this->frame = $frame;
     }
 
     public function __toString(): string
@@ -48,6 +36,11 @@ class FunctionArguments implements IteratorAggregate, Countable
             $list->children,
             fn ($nodeOrToken) => $nodeOrToken instanceof ArgumentExpression
         )));
+    }
+
+    public function has(int $index): bool
+    {
+        return isset($this->arguments[$index]);
     }
 
     public function at(int $index): NodeContext
@@ -69,5 +62,18 @@ class FunctionArguments implements IteratorAggregate, Countable
     public function count(): int
     {
         return count($this->arguments);
+    }
+
+    public function from(int $offset): self
+    {
+        $newArgs = [];
+        foreach ($this->arguments as $argOffset => $argument) {
+            if ($argOffset < $offset) {
+                continue;
+            }
+            $newArgs[] = $argument;
+        }
+
+        return new self($this->resolver, $this->frame, $newArgs);
     }
 }

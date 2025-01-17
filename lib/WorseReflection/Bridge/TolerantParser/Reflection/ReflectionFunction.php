@@ -7,10 +7,9 @@ use Phpactor\WorseReflection\Core\Reflection\ReflectionFunction as CoreReflectio
 use Phpactor\WorseReflection\Core\Name;
 use Phpactor\WorseReflection\Core\Inference\Frame;
 use Phpactor\WorseReflection\Core\DocBlock\DocBlock;
-use Phpactor\WorseReflection\Core\SourceCode;
+use Phpactor\TextDocument\TextDocument;
 use Phpactor\WorseReflection\Core\TypeFactory;
 use Phpactor\WorseReflection\Core\Type;
-use Phpactor\WorseReflection\Core\Reflection\Collection\ReflectionParameterCollection;
 use Phpactor\WorseReflection\Core\NodeText;
 use Microsoft\PhpParser\Node\Statement\FunctionDeclaration;
 use Phpactor\WorseReflection\Core\ServiceLocator;
@@ -20,17 +19,11 @@ use Phpactor\WorseReflection\Core\Util\NodeUtil;
 
 class ReflectionFunction extends AbstractReflectedNode implements CoreReflectionFunction
 {
-    private ServiceLocator $serviceLocator;
-
-    private FunctionDeclaration $node;
-
-    private SourceCode $sourceCode;
-
-    public function __construct(SourceCode $sourceCode, ServiceLocator $serviceLocator, FunctionDeclaration $node)
-    {
-        $this->serviceLocator = $serviceLocator;
-        $this->node = $node;
-        $this->sourceCode = $sourceCode;
+    public function __construct(
+        private TextDocument $sourceCode,
+        private ServiceLocator $serviceLocator,
+        private FunctionDeclaration $node
+    ) {
     }
 
     public function name(): Name
@@ -71,7 +64,7 @@ class ReflectionFunction extends AbstractReflectedNode implements CoreReflection
         return $type;
     }
 
-    public function parameters(): ReflectionParameterCollection
+    public function parameters(): TolerantReflectionParameterCollection
     {
         return TolerantReflectionParameterCollection::fromFunctionDeclaration($this->serviceLocator, $this->node, $this);
     }
@@ -81,7 +74,7 @@ class ReflectionFunction extends AbstractReflectedNode implements CoreReflection
         return NodeText::fromString($this->node->__toString());
     }
 
-    public function sourceCode(): SourceCode
+    public function sourceCode(): TextDocument
     {
         return $this->sourceCode;
     }

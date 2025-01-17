@@ -6,32 +6,21 @@ use Microsoft\PhpParser\Node;
 use Microsoft\PhpParser\Node\Statement\TraitDeclaration;
 use Phpactor\WorseReflection\Core\ClassHierarchyResolver;
 use Phpactor\WorseReflection\Core\Reflection\Collection\ClassLikeReflectionMemberCollection;
+use Phpactor\WorseReflection\Core\Reflection\Collection\ReflectionConstantCollection;
 use Phpactor\WorseReflection\Core\Reflection\Collection\ReflectionTraitCollection as PhpactorReflectionTraitCollection;
 use Phpactor\WorseReflection\Core\ClassName;
 use Phpactor\WorseReflection\Core\Reflection\Collection\ReflectionMethodCollection as CoreReflectionMethodCollection;
 use Phpactor\WorseReflection\Core\Reflection\Collection\ReflectionPropertyCollection as CoreReflectionPropertyCollection;
-use Phpactor\WorseReflection\Core\Reflection\Collection\ReflectionTraitCollection;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionMember;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionTrait as CoreReflectionTrait;
 use Phpactor\WorseReflection\Core\ServiceLocator;
-use Phpactor\WorseReflection\Core\SourceCode;
+use Phpactor\TextDocument\TextDocument;
 use Phpactor\WorseReflection\Core\DocBlock\DocBlock;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionClassLike;
 use Phpactor\WorseReflection\Core\Reflection\Collection\ReflectionMemberCollection;
 
 class ReflectionTrait extends AbstractReflectionClass implements CoreReflectionTrait
 {
-    private ServiceLocator $serviceLocator;
-
-    private TraitDeclaration $node;
-
-    private SourceCode $sourceCode;
-
-    /**
-     * @var array<string,bool>
-     */
-    private array $visited;
-
     private ?ClassLikeReflectionMemberCollection $ownMembers = null;
 
     private ?ClassLikeReflectionMemberCollection $members = null;
@@ -40,18 +29,14 @@ class ReflectionTrait extends AbstractReflectionClass implements CoreReflectionT
      * @param array<string,bool> $visited
      */
     public function __construct(
-        ServiceLocator $serviceLocator,
-        SourceCode $sourceCode,
-        TraitDeclaration $node,
-        array $visited = []
+        private ServiceLocator $serviceLocator,
+        private TextDocument $sourceCode,
+        private TraitDeclaration $node,
+        private array $visited = []
     ) {
-        $this->serviceLocator = $serviceLocator;
-        $this->node = $node;
-        $this->sourceCode = $sourceCode;
-        $this->visited = $visited;
     }
 
-    public function methods(ReflectionClassLike $contextClass = null): CoreReflectionMethodCollection
+    public function methods(?ReflectionClassLike $contextClass = null): CoreReflectionMethodCollection
     {
         return $this->members()->methods();
     }
@@ -72,6 +57,11 @@ class ReflectionTrait extends AbstractReflectionClass implements CoreReflectionT
 
         $this->members = $members->map(fn (ReflectionMember $member) => $member->withClass($this));
         return $this->members;
+    }
+
+    public function constants(): ReflectionConstantCollection
+    {
+        return $this->members()->constants();
     }
 
     public function ownMembers(): ReflectionMemberCollection
@@ -97,7 +87,7 @@ class ReflectionTrait extends AbstractReflectionClass implements CoreReflectionT
         return ClassName::fromString((string) $this->node()->getNamespacedName());
     }
 
-    public function sourceCode(): SourceCode
+    public function sourceCode(): TextDocument
     {
         return $this->sourceCode;
     }
@@ -119,9 +109,14 @@ class ReflectionTrait extends AbstractReflectionClass implements CoreReflectionT
         );
     }
 
-    public function traits(): ReflectionTraitCollection
+    public function traits(): PhpactorReflectionTraitCollection
     {
         return PhpactorReflectionTraitCollection::fromTraitDeclaration($this->serviceLocator, $this->node, $this->visited);
+    }
+
+    public function classLikeType(): string
+    {
+        return 'trait';
     }
     /**
      * @return TraitDeclaration

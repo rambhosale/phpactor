@@ -14,6 +14,7 @@ use Phpactor\LanguageServer\Core\Service\ServiceManager;
 use Phpactor\LanguageServer\Core\Workspace\Workspace;
 use Phpactor\LanguageServer\Core\Server\ClientApi;
 use Phpactor\LanguageServer\Core\Handler\Handler;
+use Phpactor\FilePathResolver\Expanders;
 
 class DebugHandler implements Handler
 {
@@ -21,42 +22,18 @@ class DebugHandler implements Handler
     const METHOD_DEBUG_WORKSPACE = 'phpactor/debug/workspace';
     const METHOD_DEBUG_STATUS = 'phpactor/status';
 
-    private Container $container;
-
-    private ClientApi $client;
-
-    private Workspace $workspace;
-
-    private ServerStats $stats;
-
-    private ServiceManager $serviceManager;
-
-    private DiagnosticsProvider $diagnosticProvider;
-
-    /**
-     * @var StatusProvider[]
-     */
-    private array $statusProviders;
-
     /**
      * @param StatusProvider[] $statusProviders
      */
     public function __construct(
-        Container $container,
-        ClientApi $client,
-        Workspace $workspace,
-        ServerStats $stats,
-        ServiceManager $serviceManager,
-        DiagnosticsProvider $diagnosticProvider,
-        array $statusProviders
+        private Container $container,
+        private ClientApi $client,
+        private Workspace $workspace,
+        private ServerStats $stats,
+        private ServiceManager $serviceManager,
+        private DiagnosticsProvider $diagnosticProvider,
+        private array $statusProviders
     ) {
-        $this->container = $container;
-        $this->client = $client;
-        $this->workspace = $workspace;
-        $this->stats = $stats;
-        $this->serviceManager = $serviceManager;
-        $this->diagnosticProvider = $diagnosticProvider;
-        $this->statusProviders = $statusProviders;
     }
 
 
@@ -82,15 +59,8 @@ class DebugHandler implements Handler
             '----------',
             '',
         ];
-        $paths = [];
 
-        foreach (
-            $this->container->get(
-                FilePathResolverExtension::SERVICE_EXPANDERS
-            )->toArray() as $tokenName => $value
-        ) {
-            $message[] = sprintf('%s: %s', $tokenName, $value);
-        }
+        $this->dumpExpanders($message);
 
         $message[] = '';
         $message[] = 'Config';
@@ -104,7 +74,7 @@ class DebugHandler implements Handler
             return new Success($json);
         }
 
-        $this->client->window()->logMessage()->info(implode(PHP_EOL, $message));
+        $this->client->window()->logMessage()->info(implode("\n", $message));
         return new Success(null);
     }
 
@@ -153,13 +123,8 @@ class DebugHandler implements Handler
             '-----',
             '',
         ];
-        foreach (
-            $this->container->get(
-                FilePathResolverExtension::SERVICE_EXPANDERS
-            )->toArray() as $tokenName => $value
-        ) {
-            $info[] = sprintf('  %s: %s', $tokenName, $value);
-        }
+
+        $this->dumpExpanders($info);
         $info[] = '';
 
         foreach ($this->statusProviders as $provider) {
@@ -171,6 +136,21 @@ class DebugHandler implements Handler
             }
         }
 
-        return new Success(implode(PHP_EOL, $info));
+        return new Success(implode("\n", $info));
+    }
+
+    /**
+     * @param array<string> $output
+     */
+    private function dumpExpanders(array &$output): void
+    {
+        foreach (
+            $this->container->expect(
+                FilePathResolverExtension::SERVICE_EXPANDERS,
+                Expanders::class
+            )->toArray() as $tokenName => $value
+        ) {
+            $output[] = sprintf('  %s: %s', $tokenName, $value);
+        }
     }
 }

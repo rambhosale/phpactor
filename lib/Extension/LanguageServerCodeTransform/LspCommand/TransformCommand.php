@@ -11,41 +11,38 @@ use Phpactor\LanguageServerProtocol\WorkspaceEdit;
 use Phpactor\LanguageServer\Core\Command\Command;
 use Phpactor\LanguageServer\Core\Server\ClientApi;
 use Phpactor\LanguageServer\Core\Workspace\Workspace;
+use function Amp\call;
 
 class TransformCommand implements Command
 {
     public const NAME  = 'transform';
 
-    private Transformers $transformers;
-
-    private Workspace $workspace;
-
-    private ClientApi $clientApi;
-
     public function __construct(
-        ClientApi $clientApi,
-        Workspace $workspace,
-        Transformers $transformers
+        private ClientApi $clientApi,
+        private Workspace $workspace,
+        private Transformers $transformers
     ) {
-        $this->transformers = $transformers;
-        $this->workspace = $workspace;
-        $this->clientApi = $clientApi;
     }
 
+    /**
+     * @return Promise<WorkspaceEdit[]>
+     */
     public function __invoke(string $uri, string $transform): Promise
     {
-        $textDocument = $this->workspace->get($uri);
-        $transformer = $this->transformers->get($transform);
-        assert($transformer instanceof Transformer);
-        $textEdits = $transformer->transform(
-            SourceCode::fromStringAndPath(
-                $textDocument->text,
-                $textDocument->uri
-            ),
-        );
+        return call(function () use ($uri, $transform) {
+            $textDocument = $this->workspace->get($uri);
+            $transformer = $this->transformers->get($transform);
+            assert($transformer instanceof Transformer);
+            $textEdits = yield $transformer->transform(
+                SourceCode::fromStringAndPath(
+                    $textDocument->text,
+                    $textDocument->uri
+                ),
+            );
 
-        return $this->clientApi->workspace()->applyEdit(new WorkspaceEdit([
-            $uri => TextEditConverter::toLspTextEdits($textEdits, $textDocument->text)
-        ]), 'Apply source code transformation');
+            return $this->clientApi->workspace()->applyEdit(new WorkspaceEdit([
+                $uri => TextEditConverter::toLspTextEdits($textEdits, $textDocument->text)
+            ]), 'Apply source code transformation');
+        });
     }
 }

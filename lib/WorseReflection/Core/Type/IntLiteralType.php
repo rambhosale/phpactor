@@ -9,11 +9,8 @@ class IntLiteralType extends IntType implements Literal, Generalizable
 {
     use LiteralTrait;
 
-    public int $value;
-
-    public function __construct(int $value)
+    public function __construct(public int $value)
     {
-        $this->value = $value;
     }
 
     public function __toString(): string
@@ -21,10 +18,8 @@ class IntLiteralType extends IntType implements Literal, Generalizable
         return (string)$this->value;
     }
 
-    /**
-     * @return int
-     */
-    public function value()
+
+    public function value(): int
     {
         return $this->value;
     }
@@ -44,7 +39,7 @@ class IntLiteralType extends IntType implements Literal, Generalizable
         return new self(-$this->value());
     }
 
-    public function withValue($value)
+    public function withValue(mixed $value): IntLiteralType
     {
         $new = clone $this;
         $new->value = (int)$value;

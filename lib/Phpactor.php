@@ -6,17 +6,25 @@ use Phpactor\ClassMover\Extension\ClassMoverExtension as MainClassMoverExtension
 use Phpactor\Container\Container;
 use Phpactor\Container\OptionalExtension;
 use Phpactor\Extension\Behat\BehatExtension;
+use Phpactor\Extension\Behat\BehatSuggestExtension;
+use Phpactor\Extension\ComposerInspector\ComposerInspectorExtension;
+use Phpactor\Extension\Configuration\ConfigurationExtension;
 use Phpactor\Extension\Debug\DebugExtension;
 use Phpactor\Extension\LanguageServerBlackfire\LanguageServerBlackfireExtension;
+use Phpactor\Extension\LanguageServerConfiguration\LanguageServerConfigurationExtension;
 use Phpactor\Extension\LanguageServerPhpCsFixer\LanguageServerPhpCsFixerExtension;
+use Phpactor\Extension\LanguageServerPhpCsFixer\LanguageServerPhpCsFixerSuggestExtension;
 use Phpactor\Extension\LanguageServerPhpstan\LanguageServerPhpstanExtension;
 use Phpactor\Extension\LanguageServerBridge\LanguageServerBridgeExtension;
 use Phpactor\Extension\LanguageServerCodeTransform\LanguageServerCodeTransformExtension;
 use Phpactor\Extension\LanguageServerCompletion\LanguageServerCompletionExtension;
 use Phpactor\Extension\LanguageServerDiagnostics\LanguageServerDiagnosticsExtension;
 use Phpactor\Extension\LanguageServerHover\LanguageServerHoverExtension;
+use Phpactor\Extension\LanguageServerEvaluatableExpression\LanguageServerEvaluatableExpressionExtension;
 use Phpactor\Extension\LanguageServerIndexer\LanguageServerIndexerExtension;
+use Phpactor\Extension\LanguageServerPhpstan\LanguageServerPhpstanSuggestExtension;
 use Phpactor\Extension\LanguageServerPsalm\LanguageServerPsalmExtension;
+use Phpactor\Extension\LanguageServerPsalm\LanguageServerPsalmSuggestExtension;
 use Phpactor\Extension\LanguageServerReferenceFinder\LanguageServerReferenceFinderExtension;
 use Phpactor\Extension\LanguageServerRename\LanguageServerRenameExtension;
 use Phpactor\Extension\LanguageServerRename\LanguageServerRenameWorseExtension;
@@ -24,10 +32,14 @@ use Phpactor\Extension\LanguageServerSymbolProvider\LanguageServerSymbolProvider
 use Phpactor\Extension\LanguageServerSelectionRange\LanguageServerSelectionRangeExtension;
 use Phpactor\Extension\LanguageServerWorseReflection\LanguageServerWorseReflectionExtension;
 use Phpactor\Extension\LanguageServer\LanguageServerExtension;
-use Phpactor\Extension\LanguageServer\LanguageServerExtraExtension;
 use Phpactor\Extension\ObjectRenderer\ObjectRendererExtension;
+use Phpactor\Extension\PhpCodeSniffer\PhpCodeSnifferExtension;
+use Phpactor\Extension\PhpCodeSniffer\PhpCodeSnifferSuggestExtension;
+use Phpactor\Extension\PHPUnit\PHPUnitExtension;
 use Phpactor\Extension\Prophecy\ProphecyExtension;
+use Phpactor\Extension\Prophecy\ProphecySuggestExtension;
 use Phpactor\Extension\Symfony\SymfonyExtension;
+use Phpactor\Extension\Symfony\SymfonySuggestExtension;
 use Phpactor\Extension\WorseReflectionAnalyse\WorseReflectionAnalyseExtension;
 use Phpactor\Indexer\Extension\IndexerExtension;
 use RuntimeException;
@@ -64,12 +76,13 @@ use Composer\XdebugHandler\XdebugHandler;
 use Phpactor\ConfigLoader\ConfigLoaderBuilder;
 use Phpactor\Extension\ReferenceFinderRpc\ReferenceFinderRpcExtension;
 use Phpactor\Extension\ReferenceFinder\ReferenceFinderExtension;
+use Symfony\Component\Filesystem\Path;
 use function ini_set;
 use function sprintf;
 
 class Phpactor
 {
-    public static function boot(InputInterface $input, OutputInterface $output, string $vendorDir): Container
+    public static function boot(InputInterface $input, OutputInterface $output, string $vendorDir, ?string $phpactorBin = null): Container
     {
         $config = [];
 
@@ -92,6 +105,9 @@ class Phpactor
 
         $config = $loader->load();
         $config[CoreExtension::PARAM_COMMAND] = $input->getFirstArgument();
+        if ($phpactorBin) {
+            $config[LanguageServerExtension::PARAM_PHPACTOR_BIN] = $phpactorBin;
+        }
         $config[FilePathResolverExtension::PARAM_APPLICATION_ROOT] = self::resolveApplicationRoot();
         $config = array_merge([ IndexerExtension::PARAM_STUB_PATHS => [] ], $config);
         $config[IndexerExtension::PARAM_STUB_PATHS][] = self::resolveApplicationRoot() . '/vendor/jetbrains/phpstorm-stubs';
@@ -99,6 +115,24 @@ class Phpactor
 
         if ($input->hasParameterOption([ '--working-dir', '-d' ])) {
             $config[FilePathResolverExtension::PARAM_PROJECT_ROOT] = $projectRoot;
+        }
+
+        if ($input->hasParameterOption('--config-extra')) {
+            $rawJson = $input->getParameterOption('--config-extra');
+            if (!is_string($rawJson)) {
+                throw new RuntimeException(sprintf(
+                    'Expected string for config-extra, got: %s',
+                    gettype($rawJson)
+                ));
+            }
+            $extraConfig = json_decode($rawJson, true);
+            if (!is_array($extraConfig)) {
+                throw new RuntimeException(sprintf(
+                    'Invalid JSON passed as config-extra: %s',
+                    $rawJson
+                ));
+            }
+            $config = array_merge($config, $extraConfig);
         }
 
         if (!isset($config[CoreExtension::PARAM_XDEBUG_DISABLE]) || $config[CoreExtension::PARAM_XDEBUG_DISABLE]) {
@@ -135,30 +169,46 @@ class Phpactor
             ReferenceFinderRpcExtension::class,
             ReferenceFinderExtension::class,
             PhpExtension::class,
+            ConfigurationExtension::class,
+            ComposerInspectorExtension::class,
             LanguageServerExtension::class,
             LanguageServerCompletionExtension::class,
             LanguageServerReferenceFinderExtension::class,
             LanguageServerWorseReflectionExtension::class,
             LanguageServerIndexerExtension::class,
             LanguageServerHoverExtension::class,
+            LanguageServerEvaluatableExpressionExtension::class,
             LanguageServerBridgeExtension::class,
             LanguageServerCodeTransformExtension::class,
             LanguageServerSymbolProviderExtension::class,
             LanguageServerSelectionRangeExtension::class,
-            LanguageServerExtraExtension::class,
             LanguageServerDiagnosticsExtension::class,
             LanguageServerRenameExtension::class,
             LanguageServerRenameWorseExtension::class,
+            LanguageServerConfigurationExtension::class,
             IndexerExtension::class,
             ObjectRendererExtension::class,
 
             LanguageServerPhpstanExtension::class,
+            LanguageServerPhpstanSuggestExtension::class,
             LanguageServerPsalmExtension::class,
-            LanguageServerBlackfireExtension::class,
+            LanguageServerPsalmSuggestExtension::class,
             LanguageServerPhpCsFixerExtension::class,
-            BehatExtension::class,
-            SymfonyExtension::class,
+            LanguageServerPhpCsFixerSuggestExtension::class,
+            PhpCodeSnifferExtension::class,
+            PhpCodeSnifferSuggestExtension::class,
+
+            LanguageServerBlackfireExtension::class,
+
             ProphecyExtension::class,
+            ProphecySuggestExtension::class,
+
+            BehatExtension::class,
+            BehatSuggestExtension::class,
+
+            SymfonyExtension::class,
+            SymfonySuggestExtension::class,
+            PHPUnitExtension::class,
         ];
 
         if (class_exists(DebugExtension::class)) {
@@ -178,7 +228,7 @@ class Phpactor
 
             if (!class_exists($extensionClass)) {
                 if ($output instanceof ConsoleOutputInterface) {
-                    $output->getErrorOutput()->writeln(sprintf('<error>Extension "%s" does not exist</>', $extensionClass). PHP_EOL);
+                    $output->getErrorOutput()->writeln(sprintf('<error>Extension "%s" does not exist</>', $extensionClass). "\n");
                 }
                 continue;
             }
@@ -245,28 +295,22 @@ class Phpactor
      * If the path is relative we need to use the current working path
      * because otherwise it will be the script path, which is wrong in the
      * context of a PHAR.
-     *
-     * @deprecated Use webmozart Path instead.
      */
     public static function normalizePath(string $path): string
     {
-        if (substr($path, 0, 1) == DIRECTORY_SEPARATOR) {
-            return $path;
-        }
-
-        return getcwd().DIRECTORY_SEPARATOR.$path;
+        return Path::makeAbsolute($path, (string)getcwd());
     }
 
     public static function relativizePath(string $path): string
     {
-        if (0 === strpos($path, (string)getcwd())) {
-            return substr($path, strlen(getcwd()) + 1);
+        if (Path::isBasePath((string)getcwd(), $path)) {
+            return Path::makeRelative($path, (string)getcwd());
         }
 
         return $path;
     }
 
-    public static function isFile(string $string)
+    public static function isFile(string $string): bool
     {
         $containsInvalidNamespaceChars = (bool) preg_match('{[\.\*/]}', $string);
 
@@ -314,8 +358,8 @@ class Phpactor
         $paths = [ __DIR__ . '/..', __DIR__ .'/../../../..' ];
 
         foreach ($paths as $path) {
-            if (is_dir((string)realpath($path.'/vendor'))) {
-                return (string)realpath($path);
+            if (is_dir($path.'/vendor')) {
+                return Path::canonicalize($path);
             }
         }
 

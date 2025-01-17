@@ -7,14 +7,11 @@ use InvalidArgumentException;
 
 class SourceCode
 {
-    private $source;
-
-    public function __construct(string $source)
+    public function __construct(private string $source)
     {
-        $this->source = $source;
     }
 
-    public function __toString()
+    public function __toString(): string
     {
         return $this->source;
     }
@@ -35,7 +32,7 @@ class SourceCode
         if (null !== $phpDeclarationLineNb) {
             return $this->insertAfter(
                 $phpDeclarationLineNb,
-                PHP_EOL . sprintf('namespace %s;', (string) $namespace)
+                "\n" . sprintf('namespace %s;', (string) $namespace)
             );
         }
 
@@ -57,11 +54,11 @@ class SourceCode
         }
 
         if ($namespaceLineNb) {
-            return $this->insertAfter($namespaceLineNb, PHP_EOL.$useStmt);
+            return $this->insertAfter($namespaceLineNb, "\n".$useStmt);
         }
 
         if (null !== $phpDeclarationLineNb) {
-            return $this->insertAfter($phpDeclarationLineNb, PHP_EOL.$useStmt);
+            return $this->insertAfter($phpDeclarationLineNb, "\n".$useStmt);
         }
 
         throw new InvalidArgumentException(
@@ -69,14 +66,14 @@ class SourceCode
         );
     }
 
-    public function replaceSource(string $source)
+    public function replaceSource(string $source): self
     {
         return new self($source);
     }
 
-    private function insertAfter(int $lineNb, $text)
+    private function insertAfter(int $lineNb, string $text): self
     {
-        $lines = explode(PHP_EOL, $this->source);
+        $lines = explode("\n", $this->source);
         $newLines = [];
         foreach ($lines as $index => $line) {
             if ($line === $text) {
@@ -89,12 +86,13 @@ class SourceCode
             }
         }
 
-        return $this->replaceSource(implode(PHP_EOL, $newLines));
+        return $this->replaceSource(implode("\n", $newLines));
     }
 
-    private function significantLineNumbers()
+    /** @return array{int|null, int|null, int|null} */
+    private function significantLineNumbers(): array
     {
-        $lines = explode(PHP_EOL, $this->source);
+        $lines = explode("\n", $this->source);
         $phpDeclarationLineNb = $namespaceLineNb = $lastUseLineNb = null;
 
         foreach ($lines as $index => $line) {

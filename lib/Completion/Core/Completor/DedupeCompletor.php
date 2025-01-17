@@ -9,14 +9,8 @@ use Phpactor\TextDocument\TextDocument;
 
 class DedupeCompletor implements Completor
 {
-    private Completor $innerCompletor;
-
-    private bool $matchNameImport;
-
-    public function __construct(Completor $innerCompletor, bool $matchNameImport = false)
+    public function __construct(private Completor $innerCompletor, private bool $matchNameImport = false)
     {
-        $this->innerCompletor = $innerCompletor;
-        $this->matchNameImport = $matchNameImport;
     }
 
 
@@ -25,10 +19,10 @@ class DedupeCompletor implements Completor
         $seen = [];
         $suggestions = $this->innerCompletor->complete($source, $byteOffset);
         foreach ($suggestions as $suggestion) {
-            $key = $suggestion->name();
+            $key = $suggestion->name().$suggestion->type();
 
             if ($this->matchNameImport) {
-                $key .= $suggestion->nameImport();
+                $key .= $suggestion->fqn();
             }
 
             if (isset($seen[$key])) {

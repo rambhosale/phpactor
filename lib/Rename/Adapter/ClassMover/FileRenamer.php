@@ -4,13 +4,13 @@ namespace Phpactor\Rename\Adapter\ClassMover;
 
 use Amp\Promise;
 use Phpactor\ClassMover\ClassMover;
+use Phpactor\Indexer\Model\QueryClient;
 use Phpactor\Rename\Model\Exception\CouldNotConvertUriToClass;
 use Phpactor\Rename\Model\Exception\CouldNotRename;
 use Phpactor\Rename\Model\FileRenamer as PhpactorFileRenamer;
 use Phpactor\Rename\Model\LocatedTextEdit;
 use Phpactor\Rename\Model\LocatedTextEditsMap;
 use Phpactor\Rename\Model\UriToNameConverter;
-use Phpactor\Indexer\Model\QueryClient;
 use Phpactor\TextDocument\Exception\TextDocumentNotFound;
 use Phpactor\TextDocument\TextDocumentLocator;
 use Phpactor\TextDocument\TextDocumentUri;
@@ -19,24 +19,12 @@ use function Amp\call;
 
 class FileRenamer implements PhpactorFileRenamer
 {
-    private QueryClient $client;
-
-    private ClassMover $mover;
-
-    private TextDocumentLocator $locator;
-
-    private UriToNameConverter $converter;
-
     public function __construct(
-        UriToNameConverter $converter,
-        TextDocumentLocator $locator,
-        QueryClient $client,
-        ClassMover $mover
+        private UriToNameConverter $converter,
+        private TextDocumentLocator $locator,
+        private QueryClient $client,
+        private ClassMover $mover
     ) {
-        $this->client = $client;
-        $this->mover = $mover;
-        $this->locator = $locator;
-        $this->converter = $converter;
     }
 
     /**
@@ -60,15 +48,15 @@ class FileRenamer implements PhpactorFileRenamer
             $edits = TextEdits::none();
             $seen = [];
             foreach ($references as $reference) {
-                if (isset($seen[$reference->location()->uri()->path()])) {
+                if (isset($seen[$reference->location()->uri()->__toString()])) {
                     continue;
                 }
 
-                $seen[$reference->location()->uri()->path()] = true;
+                $seen[$reference->location()->uri()->__toString()] = true;
 
                 try {
                     $document = $this->locator->get($reference->location()->uri());
-                } catch (TextDocumentNotFound $notFound) {
+                } catch (TextDocumentNotFound) {
                     continue;
                 }
 

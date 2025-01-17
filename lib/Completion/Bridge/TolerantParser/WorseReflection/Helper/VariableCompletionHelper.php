@@ -15,11 +15,8 @@ use Phpactor\WorseReflection\Reflector;
 
 class VariableCompletionHelper
 {
-    protected Reflector $reflector;
-
-    public function __construct(Reflector $reflector)
+    public function __construct(protected Reflector $reflector)
     {
-        $this->reflector = $reflector;
     }
 
     /**
@@ -36,7 +33,7 @@ class VariableCompletionHelper
 
         try {
             $reflectionOffset = $this->reflector->reflectOffset($source, $offset);
-        } catch (NotFound $notFound) {
+        } catch (NotFound) {
             return [];
         }
 
@@ -44,6 +41,10 @@ class VariableCompletionHelper
 
         if (CompletionContext::anonymousUse($node)) {
             $frame = $frame->parent();
+        }
+
+        if (null === $frame) {
+            return [];
         }
 
         // Get all declared variables up until the start of the current

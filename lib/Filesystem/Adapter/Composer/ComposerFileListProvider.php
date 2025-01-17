@@ -16,14 +16,8 @@ use Symfony\Component\Filesystem\Path;
 
 class ComposerFileListProvider implements FileListProvider
 {
-    private $classLoader;
-
-    private $path;
-
-    public function __construct(FilePath $path, ClassLoader $classLoader)
+    public function __construct(private FilePath $path, private ClassLoader $classLoader)
     {
-        $this->path = $path;
-        $this->classLoader = $classLoader;
     }
 
     public function fileList(): FileList
@@ -63,7 +57,7 @@ class ComposerFileListProvider implements FileListProvider
                 //
                 // TODO: This could be more efficient.
                 foreach ($seenPaths as $seenPath) {
-                    if (0 === strpos($path, $seenPath)) {
+                    if (str_starts_with($path, $seenPath)) {
                         continue 2;
                     }
                 }

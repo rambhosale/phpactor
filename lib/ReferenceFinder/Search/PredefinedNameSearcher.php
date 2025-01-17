@@ -8,16 +8,10 @@ use Phpactor\ReferenceFinder\NameSearcher;
 class PredefinedNameSearcher implements NameSearcher
 {
     /**
-     * @var NameSearchResult[]
-     */
-    private array $results;
-
-    /**
      * @param NameSearchResult[] $results
      */
-    public function __construct(array $results)
+    public function __construct(private array $results)
     {
-        $this->results = $results;
     }
 
     /**
@@ -25,11 +19,17 @@ class PredefinedNameSearcher implements NameSearcher
      */
     public function search(string $search, ?string $type = null): Generator
     {
+        $fullyQualified = str_starts_with($search, '\\');
         foreach ($this->results as $result) {
-            if (0 !== strpos($result->name()->head()->__toString(), $search)) {
+
+            if ($fullyQualified && str_starts_with('\\'. $result->name()->__toString(), $search)) {
+                yield $result;
                 continue;
             }
-            yield $result;
+            if (str_starts_with($result->name()->head()->__toString(), $search)) {
+                yield $result;
+                continue;
+            }
         }
     }
 }

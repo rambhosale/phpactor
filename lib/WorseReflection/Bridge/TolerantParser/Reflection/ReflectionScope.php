@@ -2,6 +2,7 @@
 
 namespace Phpactor\WorseReflection\Bridge\TolerantParser\Reflection;
 
+use Microsoft\PhpParser\Node\QualifiedName;
 use Phpactor\WorseReflection\Core\ClassName;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionScope as CoreReflectionScope;
 use Microsoft\PhpParser\Node;
@@ -18,14 +19,8 @@ use Phpactor\WorseReflection\Reflector;
 
 class ReflectionScope implements CoreReflectionScope
 {
-    private Node $node;
-
-    private Reflector $reflector;
-
-    public function __construct(Reflector $reflector, Node $node)
+    public function __construct(private Reflector $reflector, private Node $node)
     {
-        $this->node = $node;
-        $this->reflector = $reflector;
     }
 
     /**
@@ -47,14 +42,14 @@ class ReflectionScope implements CoreReflectionScope
             return Name::fromString('');
         }
 
-        if (null === $namespaceDefinition->name) {
+        if (!$namespaceDefinition->name instanceof QualifiedName) {
             return Name::fromString('');
         }
 
         return Name::fromString($namespaceDefinition->name->getText());
     }
 
-    public function resolveFullyQualifiedName($type, ReflectionClassLike $class = null): Type
+    public function resolveFullyQualifiedName($type, ?ReflectionClassLike $class = null): Type
     {
         $resolver = new NodeToTypeConverter($this->reflector, new ArrayLogger());
         return $resolver->resolve($this->node, $type, $class ? $class->name() : null);

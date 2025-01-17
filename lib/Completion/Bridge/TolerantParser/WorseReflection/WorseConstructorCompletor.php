@@ -42,7 +42,7 @@ class WorseConstructorCompletor extends AbstractParameterCompletor implements To
         $variables = $this->variableCompletionHelper->variableCompletions($node, $source, $offset);
 
         // no variables available for completion, return empty handed
-        if (empty($variables)) {
+        if ($variables === []) {
             return true;
         }
 
@@ -50,7 +50,7 @@ class WorseConstructorCompletor extends AbstractParameterCompletor implements To
 
         try {
             $reflectionClass = $this->reflectClass($source, $creationExpression);
-        } catch (NotFound $notFound) {
+        } catch (NotFound) {
             return true;
         }
 

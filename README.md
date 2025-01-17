@@ -29,8 +29,8 @@ for installation instructions.
 Requirements
 ------------
 
-- PHP 7.4+
-- Composer
+- PHP 8.1+
+- [Composer](https://getcomposer.org/)
 
 Project Recommendations
 -----------------------
@@ -46,7 +46,7 @@ Full documentation can be found on [Read the Docs](https://phpactor.readthedocs.
 Community
 ---------
 
-- Follow [@phpactor](https://twitter.com/phpactor) for the latest news.
+- Follow [@phpactor](https://phpc.social/@phpactor) on 🦣 Mastodon for latest news.
 - Join the `#phpactor` channel on the Slack [Symfony Devs](https://symfony.com/slack-invite) channel.
 
 Contributing

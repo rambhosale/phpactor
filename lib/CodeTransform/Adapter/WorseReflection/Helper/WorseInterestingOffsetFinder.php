@@ -11,13 +11,10 @@ use Phpactor\WorseReflection\Core\Reflector\SourceCodeReflector;
 
 class WorseInterestingOffsetFinder implements InterestingOffsetFinder
 {
-    private SourceCodeReflector $reflector;
-
     private Parser $parser;
 
-    public function __construct(SourceCodeReflector $reflector, Parser $parser = null)
+    public function __construct(private SourceCodeReflector $reflector, ?Parser $parser = null)
     {
-        $this->reflector = $reflector;
         $this->parser = $parser ?: new Parser();
     }
 
@@ -46,7 +43,7 @@ class WorseInterestingOffsetFinder implements InterestingOffsetFinder
     {
         $reflectionOffset = $this->reflector->reflectOffset($source, $offset->toInt());
 
-        $symbolType = $reflectionOffset->symbolContext()->symbol()->symbolType();
+        $symbolType = $reflectionOffset->nodeContext()->symbol()->symbolType();
 
         if ($symbolType !== Symbol::UNKNOWN) {
             return $offset;

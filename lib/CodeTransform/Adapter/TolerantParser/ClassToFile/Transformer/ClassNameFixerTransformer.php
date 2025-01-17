@@ -2,7 +2,11 @@
 
 namespace Phpactor\CodeTransform\Adapter\TolerantParser\ClassToFile\Transformer;
 
+use Amp\Promise;
+use Amp\Success;
 use Microsoft\PhpParser\ClassLike;
+use Microsoft\PhpParser\Node;
+use Microsoft\PhpParser\Node\QualifiedName;
 use Microsoft\PhpParser\Node\SourceFileNode;
 use Microsoft\PhpParser\Node\Statement\ClassDeclaration;
 use Microsoft\PhpParser\Node\Statement\EnumDeclaration;
@@ -11,6 +15,7 @@ use Microsoft\PhpParser\Node\Statement\InterfaceDeclaration;
 use Microsoft\PhpParser\Node\Statement\NamespaceDefinition;
 use Microsoft\PhpParser\Node\Statement\TraitDeclaration;
 use Microsoft\PhpParser\Parser;
+use Microsoft\PhpParser\Token;
 use Phpactor\ClassFileConverter\Domain\ClassName;
 use Phpactor\ClassFileConverter\Domain\FilePath;
 use Phpactor\ClassFileConverter\Domain\FileToClass;
@@ -26,17 +31,19 @@ use RuntimeException;
 
 class ClassNameFixerTransformer implements Transformer
 {
-    private FileToClass $fileToClass;
-
     private Parser $parser;
 
-    public function __construct(FileToClass $fileToClass, Parser $parser = null)
-    {
-        $this->fileToClass = $fileToClass;
+    public function __construct(
+        private FileToClass $fileToClass,
+        ?Parser $parser = null
+    ) {
         $this->parser = $parser ?: new Parser();
     }
 
-    public function transform(SourceCode $code): TextEdits
+    /**
+     * @return Promise<TextEdits>
+     */
+    public function transform(SourceCode $code): Promise
     {
         if ($code->uri()->scheme() !== 'file') {
             throw new TransformException(sprintf('Source is not a file:// it is "%s"', $code->uri()->scheme()));
@@ -56,20 +63,23 @@ class ClassNameFixerTransformer implements Transformer
             $edits[] = $textEdit;
         }
 
-        return TextEdits::fromTextEdits($edits);
+        return new Success(TextEdits::fromTextEdits($edits));
     }
 
 
-    public function diagnostics(SourceCode $code): Diagnostics
+    /**
+     * @return Promise<Diagnostics>
+     */
+    public function diagnostics(SourceCode $code): Promise
     {
         if ($code->uri()->scheme() !== 'file') {
-            return Diagnostics::none();
+            return new Success(Diagnostics::none());
         }
         $rootNode = $this->parser->parseSourceFile((string) $code);
         try {
             $classFqn = $this->determineClassFqn($code);
-        } catch (RuntimeException $couldNotFindCandidate) {
-            return Diagnostics::none();
+        } catch (RuntimeException) {
+            return new Success(Diagnostics::none());
         }
         $correctClassName = $classFqn->name();
         $correctNamespace = $classFqn->namespace();
@@ -89,18 +99,21 @@ class ClassNameFixerTransformer implements Transformer
         }
         if (null !== $edits = $this->fixClassName($rootNode, $correctClassName)) {
             $classLike = $rootNode->getFirstDescendantNode(ClassLike::class);
+            $nameToken = $this->nameToken($classLike);
 
-            $diagnostics[] = new Diagnostic(
-                ByteOffsetRange::fromInts(
-                    $classLike ? $classLike->getStartPosition() : 0,
-                    $classLike ? $classLike->getEndPosition() : 0
-                ),
-                sprintf('Class name should probably be "%s"', $correctClassName),
-                Diagnostic::WARNING
-            );
+            if ($nameToken) {
+                $diagnostics[] = new Diagnostic(
+                    ByteOffsetRange::fromInts(
+                        $nameToken->getStartPosition(),
+                        $nameToken->getEndPosition(),
+                    ),
+                    sprintf('Class name should probably be "%s"', $correctClassName),
+                    Diagnostic::WARNING
+                );
+            }
         }
 
-        return new Diagnostics($diagnostics);
+        return new Success(new Diagnostics($diagnostics));
     }
 
 
@@ -133,10 +146,10 @@ class ClassNameFixerTransformer implements Transformer
             $scriptStart = $rootNode->getFirstDescendantNode(InlineHtml::class);
             $scriptStart = $scriptStart ? $scriptStart->getEndPosition() : 0;
 
-            $statement = PHP_EOL . $statement . PHP_EOL;
+            $statement = "\n" . $statement . "\n";
 
             if (0 === $scriptStart) {
-                $statement = '<?php' . PHP_EOL . $statement;
+                $statement = '<?php' . "\n" . $statement;
             }
 
 
@@ -147,7 +160,7 @@ class ClassNameFixerTransformer implements Transformer
             return null;
         }
 
-        if ($namespaceDefinition->name) {
+        if ($namespaceDefinition->name instanceof QualifiedName) {
             if ($namespaceDefinition->name->__toString() === $correctNamespace) {
                 return null;
             }
@@ -162,16 +175,35 @@ class ClassNameFixerTransformer implements Transformer
 
     private function determineClassFqn(SourceCode $code): ClassName
     {
-        if (!$code->path()) {
+        if (!$code->uri()->path()) {
             throw new RuntimeException('Source code has no path associated with it');
         }
 
         $candidates = $this->fileToClass->fileToClassCandidates(
-            FilePath::fromString((string) $code->path())
+            FilePath::fromString((string) $code->uri()->path())
         );
 
         $classFqn = $candidates->best();
 
         return $classFqn;
+    }
+
+    private function nameToken(?Node $classLike): ?Token
+    {
+        if (null === $classLike) {
+            return null;
+        }
+
+        if (!property_exists($classLike, 'name')) {
+            return null;
+        }
+
+        $name = $classLike->name;
+
+        if (!$name instanceof Token) {
+            return null;
+        }
+
+        return $name;
     }
 }

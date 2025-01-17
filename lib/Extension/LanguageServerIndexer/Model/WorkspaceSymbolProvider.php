@@ -2,6 +2,7 @@
 
 namespace Phpactor\Extension\LanguageServerIndexer\Model;
 
+use function Amp\call;
 use Amp\Promise;
 use Phpactor\Extension\LanguageServerBridge\Converter\PositionConverter;
 use Phpactor\Indexer\Model\Query\Criteria;
@@ -21,17 +22,11 @@ use Phpactor\TextDocument\TextDocumentUri;
 
 final class WorkspaceSymbolProvider
 {
-    private SearchClient $client;
-
-    private TextDocumentLocator $locator;
-
-    private int $limit;
-
-    public function __construct(SearchClient $client, TextDocumentLocator $locator, int $limit)
-    {
-        $this->client = $client;
-        $this->locator = $locator;
-        $this->limit = $limit;
+    public function __construct(
+        private SearchClient $client,
+        private TextDocumentLocator $locator,
+        private int $limit
+    ) {
     }
 
     /**
@@ -39,7 +34,7 @@ final class WorkspaceSymbolProvider
      */
     public function provideFor(string $query): Promise
     {
-        return \Amp\call(function () use ($query) {
+        return call(function () use ($query) {
             $infos = [];
             foreach ($this->client->search(Criteria::shortNameContains($query)) as $count => $record) {
                 if ($count >= $this->limit) {
@@ -60,9 +55,9 @@ final class WorkspaceSymbolProvider
     {
         if ($record instanceof ClassRecord) {
             return new SymbolInformation(
-                $record->fqn()->__toString(),
-                SymbolKind::CLASS_,
-                new Location(
+                name: $record->fqn()->__toString(),
+                kind: SymbolKind::CLASS_,
+                location: new Location(
                     TextDocumentUri::fromString($record->filePath()),
                     new Range(
                         $this->toLspPosition($record->start(), $record->filePath()),
@@ -74,9 +69,9 @@ final class WorkspaceSymbolProvider
 
         if ($record instanceof FunctionRecord) {
             return new SymbolInformation(
-                $record->fqn()->__toString(),
-                SymbolKind::FUNCTION,
-                new Location(
+                name: $record->fqn()->__toString(),
+                kind: SymbolKind::FUNCTION,
+                location: new Location(
                     TextDocumentUri::fromString($record->filePath()),
                     new Range(
                         $this->toLspPosition($record->start(), $record->filePath()),
@@ -88,9 +83,9 @@ final class WorkspaceSymbolProvider
 
         if ($record instanceof ConstantRecord) {
             return new SymbolInformation(
-                $record->fqn()->__toString(),
-                SymbolKind::CONSTANT,
-                new Location(
+                name: $record->fqn()->__toString(),
+                kind: SymbolKind::CONSTANT,
+                location: new Location(
                     TextDocumentUri::fromString($record->filePath()),
                     new Range(
                         $this->toLspPosition($record->start(), $record->filePath()),

@@ -13,22 +13,17 @@ use Phpactor\LanguageServer\Core\Server\ResponseWatcher\DeferredResponseWatcher;
 use Phpactor\LanguageServer\Core\Server\RpcClient;
 use Phpactor\LanguageServer\Core\Server\RpcClient\JsonRpcClient;
 use Phpactor\LanguageServer\Core\Server\Transmitter\MessageTransmitter;
-use Phpactor\LanguageServer\WorkDoneProgress\ClientCapabilityDependentProgressNotifier;
+use Phpactor\LanguageServer\WorkDoneProgress\MessageProgressNotifier;
 use Phpactor\LanguageServer\WorkDoneProgress\ProgressNotifier;
+use Phpactor\LanguageServer\WorkDoneProgress\WorkDoneProgressNotifier;
 use Phpactor\MapResolver\Resolver;
 
 class LanguageServerSessionExtension implements Extension
 {
-    private MessageTransmitter $transmitter;
-
-    private InitializeParams $initializeParams;
-
     public function __construct(
-        MessageTransmitter $transmitter,
-        InitializeParams $initializeParams
+        private MessageTransmitter $transmitter,
+        private InitializeParams $initializeParams
     ) {
-        $this->transmitter = $transmitter;
-        $this->initializeParams = $initializeParams;
     }
 
 
@@ -59,10 +54,12 @@ class LanguageServerSessionExtension implements Extension
         });
 
         $container->register(ProgressNotifier::class, function (Container $container) {
-            return new ClientCapabilityDependentProgressNotifier(
-                $container->get(ClientApi::class),
-                $container->get(ClientCapabilities::class),
-            );
+            $capabilities = $container->get(ClientCapabilities::class);
+            if ($capabilities?->window?->workDoneProgress ?? false) {
+                return new WorkDoneProgressNotifier($container->get(ClientApi::class));
+            }
+
+            return new MessageProgressNotifier($container->get(ClientApi::class));
         });
     }
 

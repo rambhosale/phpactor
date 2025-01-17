@@ -3,21 +3,16 @@
 namespace Phpactor\WorseReflection\Core;
 
 use Countable;
+use Phpactor\WorseReflection\Core\Type\ClassType;
 use Phpactor\WorseReflection\Core\Type\MissingType;
 
 final class TemplateMap implements Countable
 {
     /**
-     * @var array<string,Type>
-     */
-    private array $map;
-
-    /**
      * @param array<string,Type> $map
      */
-    public function __construct(array $map)
+    public function __construct(private array $map)
     {
-        $this->map = $map;
     }
 
     public function __toString(): string
@@ -57,11 +52,7 @@ final class TemplateMap implements Countable
         // if any of the arguments are template parameters replace them with
         // any constraints (e.g. T of Foobar)
         $arguments = array_map(function (Type $argument) {
-            if (isset($this->map[$argument->short()])) {
-                return $this->map[$argument->short()];
-            }
-
-            return $argument;
+            return $this->map[$argument->short()] ?? $argument;
         }, $arguments);
 
         if ($arguments) {
@@ -115,5 +106,17 @@ final class TemplateMap implements Countable
     public function toArguments(): array
     {
         return array_values($this->map);
+    }
+
+    public function getOrGiven(Type $type): Type
+    {
+        if (!$type instanceof ClassType) {
+            return $type;
+        }
+        $templateType = $this->map[$type->short()] ?? null;
+        if ($templateType) {
+            return $templateType;
+        }
+        return $type;
     }
 }

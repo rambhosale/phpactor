@@ -7,14 +7,16 @@ use Phpactor\WorseReflection\Core\ClassName;
 use Phpactor\WorseReflection\Core\Reflector\ClassReflector;
 use Phpactor\WorseReflection\Core\Trinary;
 use Phpactor\WorseReflection\Core\Type;
+use Phpactor\WorseReflection\Core\TypeFactory;
 use Phpactor\WorseReflection\Core\Type\Resolver\IterableTypeResolver;
+use Phpactor\WorseReflection\Core\Types;
 
-class GenericClassType extends ReflectedClassType implements IterableType, ClassNamedType
+class GenericClassType extends ReflectedClassType implements IterableType, ClassLikeType
 {
     /**
      * @var Type[]
      */
-    public array $arguments;
+    protected array $arguments;
 
     /**
      * @param Type[] $arguments
@@ -22,7 +24,9 @@ class GenericClassType extends ReflectedClassType implements IterableType, Class
     public function __construct(ClassReflector $reflector, ClassName $name, array $arguments)
     {
         parent::__construct($reflector, $name);
-        $this->arguments = $arguments;
+        $this->reflector = $reflector;
+        $this->name = $name;
+        $this->arguments = array_values($arguments);
     }
 
     public function __toString(): string
@@ -54,11 +58,31 @@ class GenericClassType extends ReflectedClassType implements IterableType, Class
 
     public function accepts(Type $type): Trinary
     {
-        if ($this->is($type)->isTrue()) {
-            return Trinary::true();
+        if (!$type instanceof GenericClassType) {
+            return parent::accepts($type);
         }
 
-        return Trinary::false();
+        if (!parent::accepts($type)->isTrue()) {
+            return Trinary::false();
+        }
+
+        $typeArguments = $type->arguments;
+
+        // horrible hack for "special" types which have > 1 "constructors"
+        if (in_array($type->name()->__toString(), IterableTypeResolver::iterableClasses())) {
+            array_unshift($typeArguments, TypeFactory::arrayKey());
+        }
+
+        foreach ($this->arguments as $index => $argument) {
+            if (!isset($typeArguments[$index])) {
+                return Trinary::false();
+            }
+            if (!$argument->accepts($typeArguments[$index])->isTrue()) {
+                return Trinary::false();
+            }
+        }
+
+        return Trinary::true();
     }
 
     public function replaceArgument(int $offset, Type $type): self
@@ -100,5 +124,13 @@ class GenericClassType extends ReflectedClassType implements IterableType, Class
             ClassName::fromString((new ReflectedClassType($this->reflector, $this->name))->map($mapper)->__toString()),
             array_map(fn (Type $type) => $type->map($mapper), $this->arguments)
         );
+    }
+
+    public function allTypes(): Types
+    {
+        return new Types([
+            TypeFactory::reflectedClass($this->reflector, $this->name),
+            ...array_values($this->arguments)
+        ]);
     }
 }

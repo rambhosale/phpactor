@@ -8,7 +8,7 @@ use Phpactor\CodeTransform\Domain\Exception\TransformException;
 use Phpactor\CodeTransform\Domain\Refactor\ExtractExpression;
 use Phpactor\CodeTransform\Domain\SourceCode;
 use Phpactor\Extension\LanguageServerBridge\Converter\TextEditConverter;
-use Phpactor\LanguageServerProtocol\ApplyWorkspaceEditResponse;
+use Phpactor\LanguageServerProtocol\ApplyWorkspaceEditResult;
 use Phpactor\LanguageServerProtocol\WorkspaceEdit;
 use Phpactor\LanguageServer\Core\Command\Command;
 use Phpactor\LanguageServer\Core\Server\ClientApi;
@@ -19,24 +19,15 @@ class ExtractExpressionCommand implements Command
     public const NAME  = 'extract_expression';
     public const DEFAULT_VARIABLE_NAME  = 'newVariable';
 
-    private ClientApi $clientApi;
-
-    private Workspace $workspace;
-
-    private ExtractExpression $extractExpression;
-
     public function __construct(
-        ClientApi $clientApi,
-        Workspace $workspace,
-        ExtractExpression $extractExpression
+        private ClientApi $clientApi,
+        private Workspace $workspace,
+        private ExtractExpression $extractExpression
     ) {
-        $this->clientApi = $clientApi;
-        $this->workspace = $workspace;
-        $this->extractExpression = $extractExpression;
     }
 
     /**
-     * @return Promise<?ApplyWorkspaceEditResponse>
+     * @return Promise<?ApplyWorkspaceEditResult>
      */
     public function __invoke(string $uri, int $startOffset, int $endOffset): Promise
     {

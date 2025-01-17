@@ -8,14 +8,8 @@ use SplFileInfo;
 
 class IndexJob
 {
-    private IndexBuilder $indexBuilder;
-
-    private FileList $fileList;
-
-    public function __construct(IndexBuilder $indexBuilder, FileList $fileList)
+    public function __construct(private IndexBuilder $indexBuilder, private FileList $fileList)
     {
-        $this->indexBuilder = $indexBuilder;
-        $this->fileList = $fileList;
     }
 
     /**
@@ -25,6 +19,10 @@ class IndexJob
     {
         foreach ($this->fileList as $fileInfo) {
             assert($fileInfo instanceof SplFileInfo);
+            if ($fileInfo->isLink()) {
+                continue;
+            }
+
             $contents = @file_get_contents($fileInfo->getPathname());
 
             if (false === $contents) {

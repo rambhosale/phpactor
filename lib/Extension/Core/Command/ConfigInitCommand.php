@@ -2,24 +2,21 @@
 
 namespace Phpactor\Extension\Core\Command;
 
-use Phpactor\Extension\Core\Model\ConfigManipulator;
+use Phpactor\Configurator\Model\ConfigManipulator;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class ConfigInitCommand extends Command
 {
-    private ConfigManipulator $initializer;
-
-    public function __construct(ConfigManipulator $initializer)
+    public function __construct(private ConfigManipulator $initializer)
     {
         parent::__construct();
-        $this->initializer = $initializer;
     }
 
     protected function configure(): void
     {
-        $this->setDescription('Iniitalize Phpactor configuration file or update the location of the JSON schema');
+        $this->setDescription('Initialize Phpactor configuration file or update the location of the JSON schema');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

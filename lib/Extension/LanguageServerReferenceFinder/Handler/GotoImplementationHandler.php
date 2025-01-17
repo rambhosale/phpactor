@@ -2,6 +2,7 @@
 
 namespace Phpactor\Extension\LanguageServerReferenceFinder\Handler;
 
+use function Amp\call;
 use Amp\Promise;
 use Phpactor\Extension\LanguageServerBridge\Converter\PositionConverter;
 use Phpactor\LanguageServerProtocol\ImplementationParams;
@@ -15,17 +16,11 @@ use Phpactor\TextDocument\TextDocumentBuilder;
 
 class GotoImplementationHandler implements Handler, CanRegisterCapabilities
 {
-    private Workspace $workspace;
-
-    private ClassImplementationFinder $finder;
-
-    private LocationConverter $locationConverter;
-
-    public function __construct(Workspace $workspace, ClassImplementationFinder $finder, LocationConverter $locationConverter)
-    {
-        $this->workspace = $workspace;
-        $this->finder = $finder;
-        $this->locationConverter = $locationConverter;
+    public function __construct(
+        private Workspace $workspace,
+        private ClassImplementationFinder $finder,
+        private LocationConverter $locationConverter
+    ) {
     }
 
 
@@ -38,7 +33,7 @@ class GotoImplementationHandler implements Handler, CanRegisterCapabilities
 
     public function gotoImplementation(ImplementationParams $params): Promise
     {
-        return \Amp\call(function () use ($params) {
+        return call(function () use ($params) {
             $textDocument = $this->workspace->get($params->textDocument->uri);
             $phpactorDocument = TextDocumentBuilder::create(
                 $textDocument->text

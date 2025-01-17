@@ -14,14 +14,14 @@ use Phpactor\TextDocument\TextDocument;
 
 class GotoImplementationHandlerTest extends TestCase
 {
-    const EXAMPLE_SOURCE = 'some source file';
-    const EXAMPLE_OFFSET = 1234;
-    const EXAMPLE_PATH = '/some/path.php';
+    private const EXAMPLE_SOURCE = 'some source file';
+    private const EXAMPLE_OFFSET = 1234;
+    private const EXAMPLE_PATH = '/some/path.php';
 
     public function testGotoSingleImplementation(): void
     {
         $location = $this->create([
-            Location::fromPathAndOffset(self::EXAMPLE_PATH, 10)
+            Location::fromPathAndOffsets(self::EXAMPLE_PATH, 10, 10)
         ])->handle('goto_implementation', [
             'source' => self::EXAMPLE_SOURCE,
             'offset' => self::EXAMPLE_OFFSET,
@@ -37,8 +37,8 @@ class GotoImplementationHandlerTest extends TestCase
     public function testSelectFromMultiple(): void
     {
         $response = $this->create([
-            Location::fromPathAndOffset(__FILE__, 20),
-            Location::fromPathAndOffset(__FILE__, 40)
+            Location::fromPathAndOffsets(__FILE__, 20, 20),
+            Location::fromPathAndOffsets(__FILE__, 40, 40)
         ])->handle('goto_implementation', [
             'source' => self::EXAMPLE_SOURCE,
             'offset' => self::EXAMPLE_OFFSET,
@@ -56,16 +56,10 @@ class GotoImplementationHandlerTest extends TestCase
     {
         $locator = new class($locations) implements ClassImplementationFinder {
             /**
-             * @var Location[]
-             */
-            private array $locations;
-
-            /**
              * @param Location[] $locations
              */
-            public function __construct(array $locations)
+            public function __construct(private array $locations)
             {
-                $this->locations = $locations;
             }
 
             public function findImplementations(TextDocument $document, ByteOffset $byteOffset, bool $includeDefinition = false): Locations

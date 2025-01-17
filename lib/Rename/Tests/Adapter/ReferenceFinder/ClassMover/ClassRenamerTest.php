@@ -5,13 +5,18 @@ namespace Phpactor\Rename\Tests\Adapter\ReferenceFinder\ClassMover;
 use Generator;
 use Microsoft\PhpParser\Parser;
 use Phpactor\ClassMover\ClassMover;
+use Phpactor\ReferenceFinder\PotentialLocation;
 use Phpactor\Rename\Adapter\ReferenceFinder\ClassMover\ClassRenamer;
+use Phpactor\Rename\Adapter\Test\TestNameToUriConverter;
 use Phpactor\Rename\Model\LocatedTextEdits;
 use Phpactor\Rename\Model\LocatedTextEditsMap;
 use Phpactor\Rename\Model\NameToUriConverter;
+use Phpactor\Rename\Model\ReferenceFinder\PredefinedReferenceFinder;
 use Phpactor\Rename\Tests\Adapter\ReferenceFinder\ReferenceRenamerIntegrationTestCase;
 use Phpactor\Extension\LanguageServerRename\Tests\Util\OffsetExtractor;
 use Phpactor\TextDocument\ByteOffset;
+use Phpactor\TextDocument\ByteOffsetRange;
+use Phpactor\TextDocument\Location;
 use Phpactor\TextDocument\TextDocument;
 use Phpactor\TextDocument\TextDocumentBuilder;
 use Phpactor\TextDocument\TextDocumentLocator\InMemoryDocumentLocator;
@@ -19,6 +24,35 @@ use Phpactor\TextDocument\TextDocumentUri;
 
 class ClassRenamerTest extends ReferenceRenamerIntegrationTestCase
 {
+    public function testRenameWithReferenceToNonExistingFile(): void
+    {
+        $finder = new PredefinedReferenceFinder(
+            PotentialLocation::surely(
+                new Location(
+                    TextDocumentUri::fromString('file:///not-existing'),
+                    ByteOffsetRange::fromInts(1, 1)
+                )
+            )
+        );
+
+        $converter =  new TestNameToUriConverter([
+            'Foobar' => TextDocumentUri::fromString('file:///foobar'),
+            'FoobarBaz' => TextDocumentUri::fromString('file:///foobar-new'),
+        ]);
+        $renamer = new ClassRenamer(
+            $converter,
+            $converter,
+            $finder,
+            InMemoryDocumentLocator::fromTextDocuments([]),
+            new Parser(),
+            new ClassMover()
+        );
+
+        $textDocument = TextDocumentBuilder::fromPathAndString('/path', '<?php class Foobar{}');
+        iterator_to_array($renamer->rename($textDocument, ByteOffset::fromInt(12), 'FoobarBaz'), false);
+        $this->addToAssertionCount(1);
+    }
+
     /**
      * @dataProvider provideRename
      */
@@ -95,6 +129,15 @@ class ClassRenamerTest extends ReferenceRenamerIntegrationTestCase
             '<?php interface Interface2 { }',
         ];
 
+        yield 'enum' => [
+            '/foo/Enum1.php',
+            '<?php <r>enum Mar<>ker { }',
+            'Pony',
+            'file:///foo/Pony.php',
+            1,
+            '<?php enum Pony { }',
+        ];
+
         yield 'interface: updates implements' => [
             '/foo/Interface1.php',
             '<?php <r>interface Inter<>face1 { } class Class1 implements Interface1 { }',
@@ -168,11 +211,8 @@ class ClassRenamerTest extends ReferenceRenamerIntegrationTestCase
         TextDocument $textDocument
     ): ClassRenamer {
         $nameToUriConverter = new class($namespaceRootDir) implements NameToUriConverter {
-            private string $namespaceRootDir;
-            public function __construct(
-                string $namespaceRootDir
-            ) {
-                $this->namespaceRootDir = $namespaceRootDir;
+            public function __construct(private string $namespaceRootDir)
+            {
             }
 
             public function convert(string $className): TextDocumentUri

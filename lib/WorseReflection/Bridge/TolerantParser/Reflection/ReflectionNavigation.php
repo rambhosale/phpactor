@@ -13,28 +13,30 @@ use Phpactor\WorseReflection\Core\ServiceLocator;
 
 class ReflectionNavigation
 {
-    private Node $node;
-
-    private ServiceLocator $locator;
-
-    public function __construct(ServiceLocator $locator, Node $node)
+    public function __construct(private ServiceLocator $locator, private Node $node)
     {
-        $this->node = $node;
-        $this->locator = $locator;
     }
 
     /**
-     * @return NavigatorElementCollection<ReflectionMethodCall>
+     * @return NavigatorElementCollection<AbstractReflectionMethodCall>
      */
     public function methodCalls(): NavigatorElementCollection
     {
         $calls = [];
         foreach ($this->node->getDescendantNodes() as $node) {
+            if ($node instanceof ScopedPropertyAccessExpression) {
+                if (!$node->parent instanceof CallExpression) {
+                    continue;
+                }
+                $calls[] = new ReflectionStaticMethodCall($this->locator, new Frame(), $node);
+                continue;
+            }
             if ($node instanceof MemberAccessExpression) {
                 if (!$node->parent instanceof CallExpression) {
                     continue;
                 }
-                $calls[] = new ReflectionMethodCall($this->locator, new Frame('test'), $node);
+                $calls[] = new ReflectionMethodCall($this->locator, new Frame(), $node);
+                continue;
             }
         }
         return new NavigatorElementCollection($calls);
@@ -46,12 +48,16 @@ class ReflectionNavigation
     }
 
     /**
-     * @return NavigatorElementCollection<ReflectionPropertyAccess>
+     * @return NavigatorElementCollection<ReflectionPropertyAccess|ReflectionStaticMemberAccess>
      */
     public function propertyAccesses(): NavigatorElementCollection
     {
         $elements = [];
         foreach ($this->node->getDescendantNodes() as $node) {
+            if ($node instanceof ScopedPropertyAccessExpression) {
+                $elements[] = new ReflectionStaticMemberAccess($this->locator, new Frame(), $node);
+                continue;
+            }
             if (!$node instanceof MemberAccessExpression) {
                 continue;
             }
@@ -61,6 +67,7 @@ class ReflectionNavigation
 
             $elements[] = new ReflectionPropertyAccess($node);
         }
+
         return new NavigatorElementCollection($elements);
     }
 

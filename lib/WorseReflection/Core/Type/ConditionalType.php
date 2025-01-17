@@ -6,30 +6,15 @@ use Closure;
 use Phpactor\WorseReflection\Core\Exception\NotFound;
 use Phpactor\WorseReflection\Core\Inference\FunctionArguments;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionFunctionLike;
+use Phpactor\WorseReflection\Core\Reflection\ReflectionParameter;
 use Phpactor\WorseReflection\Core\Trinary;
 use Phpactor\WorseReflection\Core\Type;
 use Phpactor\WorseReflection\Core\TypeFactory;
 
 class ConditionalType extends Type
 {
-    private Type $isType;
-
-    private Type $left;
-
-    private Type $right;
-
-    private string $variable;
-
-    public function __construct(
-        string $variable,
-        Type $isType,
-        Type $left,
-        Type $right
-    ) {
-        $this->isType = $isType;
-        $this->left = $left;
-        $this->right = $right;
-        $this->variable = $variable;
+    public function __construct(private string $variable, private Type $isType, private Type $left, private Type $right)
+    {
     }
 
     public function __toString(): string
@@ -57,11 +42,11 @@ class ConditionalType extends Type
     {
         try {
             $parameter = $functionLike->parameters()->get(ltrim($this->variable, '$'));
-        } catch (NotFound $notFound) {
+        } catch (NotFound) {
             return TypeFactory::undefined();
         }
 
-        $argumentType = $functionArguments->at($parameter->index())->type();
+        $argumentType = $this->resolveArgumentType($functionArguments, $parameter);
 
         $evaluator = function (Type $type) use ($functionLike, $functionArguments): Type {
             if ($type instanceof ParenthesizedType && $type->type instanceof ConditionalType) {
@@ -89,5 +74,18 @@ class ConditionalType extends Type
             $this->left->map($mapper),
             $this->right->map($mapper)
         );
+    }
+
+    private function resolveArgumentType(
+        FunctionArguments $functionArguments,
+        ReflectionParameter $parameter
+    ): Type {
+        if ($functionArguments->has($parameter->index())) {
+            return $functionArguments->at($parameter->index())->type();
+        }
+        if ($parameter->default()->isDefined()) {
+            return TypeFactory::fromValue($parameter->default()->value());
+        }
+        return TypeFactory::mixed();
     }
 }

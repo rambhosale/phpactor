@@ -16,8 +16,7 @@ use SebastianBergmann\Diff\Differ as BergmannDiffer;
 class TextEditBuilder
 {
     private BergmannDiffer $differ;
-
-    public function __construct(BergmannDiffer $differ = null)
+    public function __construct(?BergmannDiffer $differ = null)
     {
         $this->differ = $differ ?: new BergmannDiffer();
     }
@@ -36,7 +35,7 @@ class TextEditBuilder
                 case 0:
                     break;
 
-                // Added
+                    // Added
                 case 1:
                     $edits[] = [
                         'start' => [
@@ -51,7 +50,7 @@ class TextEditBuilder
                     ];
                     break;
 
-                // Removed
+                    // Removed
                 case 2:
                     $edits[] = [
                         'start' => [

@@ -14,11 +14,8 @@ use Phpactor\WorseReflection\Core\Type\BooleanLiteralType;
 
 class IsSomethingStub implements FunctionStub
 {
-    private Type $isType;
-
-    public function __construct(Type $isType)
+    public function __construct(private Type $isType)
     {
-        $this->isType = $isType;
     }
 
     public function resolve(
@@ -32,7 +29,7 @@ class IsSomethingStub implements FunctionStub
         if ($symbol->symbolType() === Symbol::VARIABLE) {
             $context = $context->withTypeAssertion(TypeAssertion::variable(
                 $symbol->name(),
-                $symbol->position()->start(),
+                $symbol->position()->start()->toInt(),
                 fn (Type $type) => TypeCombinator::narrowTo($type, $this->isType),
                 function (Type $type) {
                     return TypeCombinator::subtract($this->isType, $type);

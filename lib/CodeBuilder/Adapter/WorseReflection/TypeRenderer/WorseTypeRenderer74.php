@@ -7,12 +7,14 @@ use Phpactor\WorseReflection\Core\Type\AggregateType;
 use Phpactor\WorseReflection\Core\Type\ArrayType;
 use Phpactor\WorseReflection\Core\Type\BooleanType;
 use Phpactor\WorseReflection\Core\Type\ClassType;
+use Phpactor\WorseReflection\Core\Type\GenericClassType;
 use Phpactor\WorseReflection\Core\Type\InvokeableType;
 use Phpactor\WorseReflection\Core\Type\NullableType;
 use Phpactor\WorseReflection\Core\Type\PseudoIterableType;
 use Phpactor\WorseReflection\Core\Type\ScalarType;
 use Phpactor\WorseReflection\Core\Type\SelfType;
 use Phpactor\WorseReflection\Core\Type\VoidType;
+use Phpactor\WorseReflection\Core\Type\ObjectType;
 
 class WorseTypeRenderer74 implements WorseTypeRenderer
 {
@@ -20,6 +22,10 @@ class WorseTypeRenderer74 implements WorseTypeRenderer
     {
         if ($type instanceof NullableType) {
             return '?' . $this->render($type->type);
+        }
+
+        if ($type instanceof ObjectType) {
+            return $type->toPhpString();
         }
 
         if ($type instanceof AggregateType) {
@@ -36,6 +42,10 @@ class WorseTypeRenderer74 implements WorseTypeRenderer
 
         if ($type instanceof ScalarType) {
             return $type->toPhpString();
+        }
+
+        if ($type instanceof GenericClassType) {
+            return $type->name()->short();
         }
 
         if ($type instanceof ClassType) {

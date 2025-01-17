@@ -22,12 +22,12 @@ use Phpactor\WorseReflection\Core\Reflection\Collection\ReflectionPropertyCollec
 use Phpactor\WorseReflection\Core\Reflection\Collection\ReflectionTraitCollection;
 
 use Phpactor\WorseReflection\Core\ClassName;
-use Phpactor\WorseReflection\Core\Position;
+use Phpactor\TextDocument\ByteOffsetRange;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionClass as CoreReflectionClass;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionInterface;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionMember;
 use Phpactor\WorseReflection\Core\ServiceLocator;
-use Phpactor\WorseReflection\Core\SourceCode;
+use Phpactor\TextDocument\TextDocument;
 use Phpactor\WorseReflection\Core\Util\NodeUtil;
 use Phpactor\WorseReflection\Core\Visibility;
 use Phpactor\WorseReflection\Core\DocBlock\DocBlock;
@@ -37,12 +37,6 @@ use Phpactor\WorseReflection\Core\Reflection\Collection\ReflectionMemberCollecti
 
 class ReflectionClass extends AbstractReflectionClass implements CoreReflectionClass
 {
-    private ServiceLocator $serviceLocator;
-
-    private ClassDeclaration $node;
-
-    private SourceCode $sourceCode;
-
     private ?ReflectionInterfaceCollection $interfaces = null;
 
     private ?CoreReflectionClass $parent = null;
@@ -50,11 +44,6 @@ class ReflectionClass extends AbstractReflectionClass implements CoreReflectionC
     private ?ReflectionClassCollection $ancestors = null;
 
     private ?ReflectionTraitCollection $traits = null;
-
-    /**
-     * @var array<string, bool>
-     */
-    private array $visited;
 
     private ?ClassLikeReflectionMemberCollection $ownMembers = null;
 
@@ -66,15 +55,11 @@ class ReflectionClass extends AbstractReflectionClass implements CoreReflectionC
      * @param array<string,bool> $visited
      */
     public function __construct(
-        ServiceLocator $serviceLocator,
-        SourceCode $sourceCode,
-        ClassDeclaration $node,
-        array $visited = []
+        private ServiceLocator $serviceLocator,
+        private TextDocument $sourceCode,
+        private ClassDeclaration $node,
+        private array $visited = []
     ) {
-        $this->node = $node;
-        $this->sourceCode = $sourceCode;
-        $this->visited = $visited;
-        $this->serviceLocator = $serviceLocator;
     }
 
     public function isAbstract(): bool
@@ -167,7 +152,6 @@ class ReflectionClass extends AbstractReflectionClass implements CoreReflectionC
         $baseClass = $this->node->classBaseClause->baseClass;
 
         // incomplete class
-        /** @phpstan-ignore-next-line */
         if (!$baseClass instanceof QualifiedName) {
             return null;
         }
@@ -197,17 +181,17 @@ class ReflectionClass extends AbstractReflectionClass implements CoreReflectionC
             $this->parent = $reflectedClass;
 
             return $reflectedClass;
-        } catch (NotFound $e) {
+        } catch (NotFound) {
             return null;
         }
     }
 
-    public function properties(ReflectionClassLike $contextClass = null): ReflectionPropertyCollection
+    public function properties(?ReflectionClassLike $contextClass = null): ReflectionPropertyCollection
     {
         return $this->members()->properties();
     }
 
-    public function methods(ReflectionClassLike $contextClass = null): ReflectionMethodCollection
+    public function methods(?ReflectionClassLike $contextClass = null): ReflectionMethodCollection
     {
         return $this->members()->methods();
     }
@@ -263,10 +247,9 @@ class ReflectionClass extends AbstractReflectionClass implements CoreReflectionC
         return $traits;
     }
 
-    public function memberListPosition(): Position
+    public function memberListPosition(): ByteOffsetRange
     {
-        return Position::fromFullStartStartAndEnd(
-            $this->node->classMembers->openBrace->fullStart,
+        return ByteOffsetRange::fromInts(
             $this->node->classMembers->openBrace->start,
             $this->node->classMembers->openBrace->start + $this->node->classMembers->openBrace->length
         );
@@ -297,7 +280,6 @@ class ReflectionClass extends AbstractReflectionClass implements CoreReflectionC
         // do not try and reflect the parents if we can locally see that it is
         // an instance of the given class
         $baseClause = $this->node->classInterfaceClause;
-        /** @phpstan-ignore-next-line */
         if ($baseClause instanceof ClassInterfaceClause) {
             if (NodeUtil::qualifiedNameListContains($baseClause->interfaceNameList, $className->__toString())) {
                 return true;
@@ -311,18 +293,14 @@ class ReflectionClass extends AbstractReflectionClass implements CoreReflectionC
         return $this->interfaces()->has((string) $className);
     }
 
-    public function sourceCode(): SourceCode
+    public function sourceCode(): TextDocument
     {
         return $this->sourceCode;
     }
 
     public function isConcrete(): bool
     {
-        if (false === $this->isClass()) {
-            return false;
-        }
-
-        return false === $this->isAbstract();
+        return !$this->isAbstract();
     }
 
     public function docblock(): DocBlock
@@ -376,6 +354,11 @@ class ReflectionClass extends AbstractReflectionClass implements CoreReflectionC
     public function hierarchy(): ReflectionClassLikeCollection
     {
         return ReflectionClassLikeCollection::fromReflections((new ClassHierarchyResolver())->resolve($this));
+    }
+
+    public function classLikeType(): string
+    {
+        return 'class';
     }
 
     protected function node(): Node

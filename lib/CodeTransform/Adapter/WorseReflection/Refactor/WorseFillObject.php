@@ -2,13 +2,14 @@
 
 namespace Phpactor\CodeTransform\Adapter\WorseReflection\Refactor;
 
+use Microsoft\PhpParser\Node\Attribute;
 use Microsoft\PhpParser\Node\Expression\ObjectCreationExpression;
 use Microsoft\PhpParser\Parser;
 use Phpactor\CodeBuilder\Domain\Builder\SourceCodeBuilder;
 use Phpactor\CodeBuilder\Domain\Code;
 use Phpactor\CodeBuilder\Domain\Updater;
 use Phpactor\CodeTransform\Adapter\WorseReflection\Helper\EmptyValueRenderer;
-use Phpactor\CodeTransform\Domain\Refactor\FillObject;
+use Phpactor\CodeTransform\Domain\Refactor\ByteOffsetRefactor;
 use Phpactor\TextDocument\ByteOffset;
 use Phpactor\TextDocument\TextDocument;
 use Phpactor\TextDocument\TextEdit;
@@ -21,42 +22,32 @@ use Phpactor\WorseReflection\Core\Type\HasEmptyType;
 use Phpactor\WorseReflection\Core\Type\ReflectedClassType;
 use Phpactor\WorseReflection\Reflector;
 
-class WorseFillObject implements FillObject
+class WorseFillObject implements ByteOffsetRefactor
 {
-    private Reflector $reflector;
-
-    private Parser $parser;
-
     private EmptyValueRenderer $valueRenderer;
 
-    private Updater $updater;
-
-    private bool $namedParameters;
-
-    private bool $hint;
-
     public function __construct(
-        Reflector $reflector,
-        Parser $parser,
-        Updater $updater,
-        bool $namedParameters = true,
-        bool $hint = true
+        private Reflector $reflector,
+        private Parser $parser,
+        private Updater $updater,
+        private bool $namedParameters = true,
+        private bool $hint = true
     ) {
-        $this->reflector = $reflector;
-        $this->parser = $parser;
         $this->valueRenderer = new EmptyValueRenderer();
-        $this->updater = $updater;
-        $this->namedParameters = $namedParameters;
-        $this->hint = $hint;
     }
 
-    public function fillObject(TextDocument $document, ByteOffset $offset): TextEdits
+    public function refactor(TextDocument $document, ByteOffset $offset): TextEdits
     {
-        $node = $this->parser->parseSourceFile($document->__toString())->getDescendantNodeAtPosition($offset->toInt());
-        $node = $node->getFirstAncestor(ObjectCreationExpression::class);
-        if (!$node instanceof ObjectCreationExpression) {
+        /** @var ObjectCreationExpression|Attribute|null $node */
+        $node = $this->parser
+            ->parseSourceFile($document->__toString())
+            ->getDescendantNodeAtPosition($offset->toInt())
+            ->getFirstAncestor(ObjectCreationExpression::class, Attribute::class)
+        ;
+        if ($node === null) {
             return TextEdits::none();
         }
+
         try {
             $offset = $this->reflector->reflectNode($document, $node->getStartPosition());
         } catch (NotFound $notFound) {
@@ -74,7 +65,7 @@ class WorseFillObject implements FillObject
 
         try {
             $constructor = $offset->class()->methods()->get('__construct');
-        } catch (NotFound $notFound) {
+        } catch (NotFound) {
             return TextEdits::none();
         }
 
@@ -119,9 +110,11 @@ class WorseFillObject implements FillObject
             $closedParen = ')';
         }
 
-        $textEdits = $textEdits->add(TextEdit::create($endPosition, 0, sprintf('%s%s%s', $openParen, implode(', ', $args), $closedParen)));
-
-        return $textEdits;
+        return $textEdits->add(TextEdit::create(
+            $endPosition,
+            0,
+            sprintf('%s%s%s', $openParen, implode(', ', $args), $closedParen),
+        ));
     }
 
     private function renderEmptyValue(Type $type): string

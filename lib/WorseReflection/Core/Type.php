@@ -6,16 +6,17 @@ use Closure;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionScope;
 use Phpactor\WorseReflection\Core\Type\AggregateType;
 use Phpactor\WorseReflection\Core\Type\ArrayType;
-use Phpactor\WorseReflection\Core\Type\ClassNamedType;
 use Phpactor\WorseReflection\Core\Type\ClassType;
 use Phpactor\WorseReflection\Core\Type\ClosureType;
 use Phpactor\WorseReflection\Core\Type\Generalizable;
+use Phpactor\WorseReflection\Core\Type\GenericClassType;
 use Phpactor\WorseReflection\Core\Type\IntersectionType;
 use Phpactor\WorseReflection\Core\Type\Literal;
 use Phpactor\WorseReflection\Core\Type\MissingType;
 use Phpactor\WorseReflection\Core\Type\MixedType;
 use Phpactor\WorseReflection\Core\Type\NullableType;
 use Phpactor\WorseReflection\Core\Type\PrimitiveType;
+use Phpactor\WorseReflection\Core\Type\PseudoIterableType;
 use Phpactor\WorseReflection\Core\Type\UnionType;
 use Phpactor\WorseReflection\Core\Type\VoidType;
 
@@ -38,18 +39,30 @@ abstract class Type
     abstract public function accepts(Type $type): Trinary;
 
     /**
-     * @return Types<Type&ClassNamedType>
+     * Return a collection of first-class types.
+     *
+     * If this type is an aggregate this method will
+     * return a collection types of that aggregate or intersection type.
+     *
+     * @return Types<Type>
      */
-    public function classNamedTypes(): Types
+    public function expandTypes(): Types
     {
-        // @phpstan-ignore-next-line no support for conditional types https://github.com/phpstan/phpstan/issues/3853
-        return $this->toTypes()->filter(fn (Type $type) => $type instanceof ClassNamedType);
+        /** @phpstan-ignore-next-line */
+        return new Types([$this]);
     }
 
     /**
+     * Return ALL types referenced in this type.
+     *
+     * For example:
+     *
+     * - `MyGeneric<One,string,int>`: Will Return `MyGeneric`, `One`, `string` and `int`.
+     * - `MyClass`: Will return `MyClass`.
+     * - `Closure(Foobar,int): float`: Will return `Closure` (as a "class" type), `Foobar`, `int` and `float` `
      * @return Types<Type>
      */
-    public function toTypes(): Types
+    public function allTypes(): Types
     {
         /** @phpstan-ignore-next-line */
         return new Types([$this]);
@@ -79,6 +92,11 @@ abstract class Type
     public function isArray(): bool
     {
         return $this instanceof ArrayType;
+    }
+
+    public function isIterable(): bool
+    {
+        return $this instanceof PseudoIterableType;
     }
 
     public function isNullable(): bool
@@ -116,6 +134,10 @@ abstract class Type
             return '?' . $type->type->short();
         }
 
+        if ($type instanceof GenericClassType) {
+            return sprintf('%s<%s>', $type->name()->short(), implode(',', array_map(fn (Type $arg) => $arg->short(), $type->arguments())));
+        }
+
         if ($type instanceof ClassType) {
             return $type->name()->short();
         }
@@ -123,9 +145,6 @@ abstract class Type
         return $type->toPhpString();
     }
 
-    /**
-     * @returnc self
-     */
     public function toLocalType(ReflectionScope $scope): self
     {
         // TODO: do not modify type by reference
@@ -218,5 +237,24 @@ abstract class Type
     public function map(Closure $mapper): Type
     {
         return $mapper($this);
+    }
+
+    /**
+     * If this type can "consume" or replace the given type
+     */
+    public function consumes(Type $type2): Trinary
+    {
+        return Trinary::maybe();
+    }
+
+    /**
+     * If the type has been augmented with more information
+     * than a standard PHP type (e.g. typed arrays, generics, closures, etc).
+     *
+     * For example augmented types should have a php doc.
+     */
+    public function isAugmented(): bool
+    {
+        return $this->isDefined() && !$this->isPrimitive() && $this->__toString() !== $this->toPhpString();
     }
 }

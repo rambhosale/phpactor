@@ -4,15 +4,13 @@ namespace Phpactor\CodeBuilder\Domain\Prototype;
 
 class Constant extends Prototype
 {
-    private string $name;
-
-    private $value;
-
-    public function __construct(string $name, Value $value, UpdatePolicy $updatePolicy = null)
-    {
+    public function __construct(
+        private string $name,
+        private Value $value,
+        private ?Visibility $visibility = null,
+        ?UpdatePolicy $updatePolicy = null
+    ) {
         parent::__construct($updatePolicy);
-        $this->name = $name;
-        $this->value = $value;
     }
 
     public function name(): string
@@ -23,5 +21,10 @@ class Constant extends Prototype
     public function value(): Value
     {
         return $this->value;
+    }
+
+    public function visibility(): ?Visibility
+    {
+        return $this->visibility;
     }
 }

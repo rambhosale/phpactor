@@ -18,33 +18,24 @@ use RuntimeException;
 
 class ClassMover
 {
-    private ClassFileNormalizer $classFileNormalizer;
-
-    private ClassMoverFacade $classMover;
-
-    private FilesystemRegistry $filesystemRegistry;
-
-    private PathFinder $pathFinder;
-
     public function __construct(
-        ClassFileNormalizer $classFileNormalizer,
-        ClassMoverFacade $classMover,
-        FilesystemRegistry $filesystemRegistry,
-        PathFinder $pathFinder
+        private ClassFileNormalizer $classFileNormalizer,
+        private ClassMoverFacade $classMover,
+        private FilesystemRegistry $filesystemRegistry,
+        private PathFinder $pathFinder
     ) {
-        $this->classFileNormalizer = $classFileNormalizer;
-        $this->filesystemRegistry = $filesystemRegistry;
-        $this->classMover = $classMover;
-        $this->pathFinder = $pathFinder;
     }
 
+    /**
+     * @return array<string, string>
+     */
     public function getRelatedFiles(string $src): array
     {
         try {
             return array_filter($this->pathFinder->destinationsFor($src), function (string $filePath) {
                 return (bool) file_exists($filePath);
             });
-        } catch (NoMatchingSourceException $e) {
+        } catch (NoMatchingSourceException) {
             // TODO: Make pathfinder return it's own exception here, this is the class-to-file exception
             return [];
         }
@@ -66,9 +57,9 @@ class ClassMover
         $this->moveFile($logger, $filesystemName, $srcPath, $destPath, $moveRelatedFiles);
     }
 
-    public function moveClass(ClassMoverLogger $logger, string $filesystemName, string $srcName, string $destName, bool $moveRelatedFiles)
+    public function moveClass(ClassMoverLogger $logger, string $filesystemName, string $srcName, string $destName, bool $moveRelatedFiles): void
     {
-        return $this->moveFile(
+        $this->moveFile(
             $logger,
             $filesystemName,
             $this->classFileNormalizer->classToFile($srcName),
@@ -94,11 +85,11 @@ class ClassMover
     private function doMoveFile(ClassMoverLogger $logger, string $filesystemName, string $srcPath, string $destPath): void
     {
         $filesystem = $this->filesystemRegistry->get($filesystemName);
-        $destPath = Phpactor::normalizePath($destPath);
-        if (substr($destPath, -1, 1) === '/') {
-            $destPath = $destPath . basename($srcPath);
+        if (str_ends_with($destPath, '/')) {
+            $destPath .= basename($srcPath);
         }
 
+        $destPath = Phpactor::normalizePath($destPath);
         $srcPath = $filesystem->createPath($srcPath);
         $destPath = $filesystem->createPath($destPath);
 
@@ -164,7 +155,10 @@ class ClassMover
         }
     }
 
-    private function expandRelatedPaths($src, $dest, bool $moveRelatedFiles): array
+    /**
+     * @return array<string, string>
+     */
+    private function expandRelatedPaths(string $src, string $dest, bool $moveRelatedFiles): array
     {
         $paths = [
             $src => $dest

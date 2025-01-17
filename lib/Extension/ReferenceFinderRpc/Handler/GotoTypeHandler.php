@@ -18,12 +18,8 @@ class GotoTypeHandler implements Handler
     const PARAM_LANGUAGE = 'language';
     const PARAM_TARGET = 'target';
 
-    private TypeLocator $locator;
-
-    public function __construct(
-        TypeLocator $locator
-    ) {
-        $this->locator = $locator;
+    public function __construct(private TypeLocator $locator)
+    {
     }
 
     public function name(): string
@@ -70,7 +66,7 @@ class GotoTypeHandler implements Handler
 
         return OpenFileResponse::fromPathAndOffset(
             $location->location()->uri()->path(),
-            $location->location()->offset()->toInt()
+            $location->location()->range()->start()->toInt()
         )->withTarget($arguments[self::PARAM_TARGET]);
     }
 }

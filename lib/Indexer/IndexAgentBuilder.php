@@ -38,8 +38,6 @@ use Psr\Log\NullLogger;
 
 final class IndexAgentBuilder
 {
-    private string $indexRoot;
-
     private RecordReferenceEnhancer $enhancer;
 
     /**
@@ -47,6 +45,7 @@ final class IndexAgentBuilder
      */
     private array $includePatterns = [
         '/**/*.php',
+        '/**/*.phar',
     ];
 
     /**
@@ -60,8 +59,6 @@ final class IndexAgentBuilder
     private array $excludePatterns = [
     ];
 
-    private string $projectRoot;
-
     /**
      * @var array<TolerantIndexer>|null
      */
@@ -69,14 +66,17 @@ final class IndexAgentBuilder
 
     private bool $followSymlinks = false;
 
+    /**
+     * @var list<string>
+     */
+    private array $supportedExtensions = ['php', 'phar'];
+
     private LoggerInterface $logger;
 
-    private function __construct(string $indexRoot, string $projectRoot)
+    private function __construct(private string $indexRoot, private string $projectRoot)
     {
-        $this->indexRoot = $indexRoot;
         $this->enhancer = new NullRecordReferenceEnhancer();
         $this->logger = new NullLogger();
-        $this->projectRoot = $projectRoot;
     }
 
     public static function create(string $indexRootPath, string $projectRoot): self
@@ -149,6 +149,16 @@ final class IndexAgentBuilder
     public function setIncludePatterns(array $includePatterns): self
     {
         $this->includePatterns = $includePatterns;
+
+        return $this;
+    }
+
+    /**
+     * @param list<string> $supportedExtensions
+     */
+    public function setSupportedExtensions(array $supportedExtensions): self
+    {
+        $this->supportedExtensions = $supportedExtensions;
 
         return $this;
     }
@@ -228,7 +238,7 @@ final class IndexAgentBuilder
     private function buildFilesystem(string $root): SimpleFilesystem
     {
         return new SimpleFilesystem(
-            $this->indexRoot,
+            FilePath::fromString($this->indexRoot),
             new SimpleFileListProvider(
                 FilePath::fromString($root),
                 $this->followSymlinks
@@ -250,7 +260,8 @@ final class IndexAgentBuilder
             new FilesystemFileListProvider(
                 $this->buildFilesystem($this->projectRoot),
                 $this->includePatterns,
-                $this->excludePatterns
+                $this->excludePatterns,
+                $this->supportedExtensions,
             )
         ];
 

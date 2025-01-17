@@ -10,33 +10,21 @@ use Phpactor\WorseReflection\Core\DocBlock\DocBlock;
 use Phpactor\WorseReflection\Core\Inference\Frame;
 use Phpactor\WorseReflection\Core\Name;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionDeclaredConstant as PhpactorReflectionDeclaredConstant;
-use Phpactor\WorseReflection\Core\SourceCode;
+use Phpactor\TextDocument\TextDocument;
 use Phpactor\WorseReflection\Core\Type;
 use Phpactor\WorseReflection\Core\ServiceLocator;
 
 class ReflectionDeclaredConstant extends AbstractReflectedNode implements PhpactorReflectionDeclaredConstant
 {
-    private ServiceLocator $serviceLocator;
-
-    private SourceCode $sourceCode;
-
-    /**
-     * @var Node\Expression\CallExpression
-     */
-    private CallExpression $node;
-
     private string $name;
 
     private ArgumentExpression $value;
 
     public function __construct(
-        ServiceLocator $serviceLocator,
-        SourceCode $sourceCode,
-        CallExpression $node
+        private ServiceLocator $serviceLocator,
+        private TextDocument $sourceCode,
+        private CallExpression $node
     ) {
-        $this->serviceLocator = $serviceLocator;
-        $this->sourceCode = $sourceCode;
-        $this->node = $node;
         $this->bindArguments();
     }
 
@@ -47,10 +35,10 @@ class ReflectionDeclaredConstant extends AbstractReflectedNode implements Phpact
 
     public function type(): Type
     {
-        return $this->serviceLocator->symbolContextResolver()->resolveNode(new Frame(''), $this->value)->type();
+        return $this->serviceLocator->nodeContextResolver()->resolveNode(new Frame(), $this->value)->type();
     }
 
-    public function sourceCode(): SourceCode
+    public function sourceCode(): TextDocument
     {
         return $this->sourceCode;
     }

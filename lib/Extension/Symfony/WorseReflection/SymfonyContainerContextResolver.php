@@ -18,15 +18,16 @@ class SymfonyContainerContextResolver implements MemberContextResolver
 {
     const CONTAINER_CLASS = 'Symfony\\Component\\DependencyInjection\\ContainerInterface';
 
-    private SymfonyContainerInspector $inspector;
-
-    public function __construct(SymfonyContainerInspector $inspector)
+    public function __construct(private SymfonyContainerInspector $inspector)
     {
-        $this->inspector = $inspector;
     }
 
-    public function resolveMemberContext(Reflector $reflector, ReflectionMember $member, ?FunctionArguments $arguments): ?Type
-    {
+    public function resolveMemberContext(
+        Reflector $reflector,
+        ReflectionMember $member,
+        Type $type,
+        ?FunctionArguments $arguments
+    ): ?Type {
         if ($member->memberType() !== ReflectionMember::TYPE_METHOD) {
             return null;
         }

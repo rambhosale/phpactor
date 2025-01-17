@@ -5,31 +5,26 @@ namespace Phpactor\Extension\Navigation\Application;
 use Phpactor\Extension\Navigation\Navigator\Navigator as NavigatorInterface;
 use RuntimeException;
 use Phpactor\Extension\CodeTransformExtra\Application\ClassNew;
+use Symfony\Component\Filesystem\Path;
 
 class Navigator
 {
-    private NavigatorInterface $navigator;
-
-    private ClassNew $classNew;
-
-    private array $autoCreateConfig;
-
+    /** @param array<string, string> $autoCreateConfig */
     public function __construct(
-        NavigatorInterface $navigator,
-        ClassNew $classNew,
-        array $autoCreateConfig
+        private NavigatorInterface $navigator,
+        private ClassNew $classNew,
+        private array $autoCreateConfig,
+        private string $absolutePath
     ) {
-        $this->navigator = $navigator;
-        $this->classNew = $classNew;
-        $this->autoCreateConfig = $autoCreateConfig;
     }
 
-    public function destinationsFor(string $path)
+    /** @return array<string, string> */
+    public function destinationsFor(string $path): array
     {
         return $this->navigator->destinationsFor($path);
     }
 
-    public function canCreateNew(string $path, string $destinationName)
+    public function canCreateNew(string $path, string $destinationName): bool
     {
         $destination = $this->destination($path, $destinationName);
 
@@ -47,7 +42,7 @@ class Navigator
         $this->classNew->generate($destination, $variant);
     }
 
-    private function destination(string $path, string $destinationName)
+    private function destination(string $path, string $destinationName): string
     {
         $destinations = $this->destinationsFor($path);
 
@@ -59,10 +54,10 @@ class Navigator
             ));
         }
 
-        return $destinations[$destinationName];
+        return Path::makeAbsolute($destinations[$destinationName], $this->absolutePath);
     }
 
-    private function variant(string $destinationName)
+    private function variant(string $destinationName): string
     {
         if (!isset($this->autoCreateConfig[$destinationName])) {
             throw new RuntimeException(sprintf(

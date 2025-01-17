@@ -2,6 +2,7 @@
 
 namespace Phpactor\Extension\LanguageServerReferenceFinder\Handler;
 
+use function Amp\call;
 use Amp\Promise;
 use Phpactor\LanguageServerProtocol\Location;
 use Phpactor\Extension\LanguageServerBridge\Converter\PositionConverter;
@@ -20,24 +21,12 @@ use Phpactor\TextDocument\TextDocumentBuilder;
 
 class GotoDefinitionHandler implements Handler, CanRegisterCapabilities
 {
-    private DefinitionLocator $definitionLocator;
-
-    private Workspace $workspace;
-
-    private LocationConverter $locationConverter;
-
-    private ClientApi $clientApi;
-
     public function __construct(
-        Workspace $workspace,
-        DefinitionLocator $definitionLocator,
-        LocationConverter $locationConverter,
-        ClientApi $clientApi
+        private Workspace $workspace,
+        private DefinitionLocator $definitionLocator,
+        private LocationConverter $locationConverter,
+        private ClientApi $clientApi
     ) {
-        $this->definitionLocator = $definitionLocator;
-        $this->workspace = $workspace;
-        $this->locationConverter = $locationConverter;
-        $this->clientApi = $clientApi;
     }
 
     public function methods(): array
@@ -52,7 +41,7 @@ class GotoDefinitionHandler implements Handler, CanRegisterCapabilities
      */
     public function definition(DefinitionParams $params): Promise
     {
-        return \Amp\call(function () use ($params) {
+        return call(function () use ($params) {
             $textDocument = $this->workspace->get($params->textDocument->uri);
 
             $offset = PositionConverter::positionToByteOffset($params->position, $textDocument->text);
@@ -66,7 +55,7 @@ class GotoDefinitionHandler implements Handler, CanRegisterCapabilities
                     )->build(),
                     $offset
                 );
-            } catch (CouldNotLocateDefinition $couldNotLocateDefinition) {
+            } catch (CouldNotLocateDefinition) {
                 return null;
             }
 

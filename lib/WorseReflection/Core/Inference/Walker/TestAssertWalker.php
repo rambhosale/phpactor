@@ -8,6 +8,7 @@ use Microsoft\PhpParser\Node\Expression\ArgumentExpression;
 use Microsoft\PhpParser\Node\Expression\CallExpression;
 use PHPUnit\Framework\TestCase;
 use Phpactor\Extension\LanguageServerBridge\Converter\PositionConverter;
+use Phpactor\WorseReflection\Bridge\TolerantParser\TextDocument\NodeToTextDocumentConverter;
 use Phpactor\WorseReflection\Core\Inference\Frame;
 use Phpactor\WorseReflection\Core\Inference\FrameResolver;
 use Phpactor\WorseReflection\Core\Inference\NodeContext;
@@ -22,11 +23,8 @@ use RuntimeException;
 
 class TestAssertWalker implements Walker
 {
-    private TestCase $testCase;
-
-    public function __construct(TestCase $testCase)
+    public function __construct(private TestCase $testCase)
     {
-        $this->testCase = $testCase;
     }
 
     public function nodeFqns(): array
@@ -40,6 +38,7 @@ class TestAssertWalker implements Walker
         $name = $node->callableExpression->getText();
 
         if ($name === 'wrFrame') {
+            /** @phpstan-ignore-next-line Allow dump() here */
             dump($frame->__toString());
             return $frame;
         }
@@ -173,8 +172,8 @@ class TestAssertWalker implements Walker
                 'Expected int literal'
             );
         }
-        $offset = $resolver->reflector()->reflectOffset($node->getFileContents(), $type->value());
-        $this->assertTypeIs($node, $offset->symbolContext()->type(), $expectedType);
+        $offset = $resolver->reflector()->reflectOffset(NodeToTextDocumentConverter::convert($node), $type->value());
+        $this->assertTypeIs($node, $offset->nodeContext()->type(), $expectedType);
     }
 
     /**

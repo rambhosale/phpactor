@@ -32,7 +32,7 @@ If you want to profile Phpactor for debugging purposes:
 - ``:LspPhpactorBlackfireStart``: Start :ref:`developing_blackfire_profiling` (if enabled with :ref:`param_blackfire.enabled`)
 - ``:LspPhpactorBlackfireFinish``: Finish profiling and get the profiling URL
 
-.. code-block:: lua
+.. code-block:: text
 
     -- requires plenary (which is required by telescope)
     local Float = require "plenary.window.float"
@@ -73,13 +73,13 @@ If you want to profile Phpactor for debugging purposes:
     function LspPhpactorDumpConfig()
         local results, _ = vim.lsp.buf_request_sync(0, "phpactor/debug/config", {["return"]=true})
         for _, res in pairs(results or {}) do
-            showWindow("Phpactor LSP Configuration", "json", res["result"])
+            pcall(showWindow, 'Phpactor LSP Configuration', 'json', res['result'])
         end
     end
     function LspPhpactorStatus()
         local results, _ = vim.lsp.buf_request_sync(0, "phpactor/status", {["return"]=true})
         for _, res in pairs(results or {}) do
-            showWindow("Phpactor Status", "markdown", res["result"])
+            pcall(showWindow, 'Phpactor Status', 'markdown', res['result'])
         end
     end
 

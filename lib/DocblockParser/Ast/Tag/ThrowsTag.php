@@ -3,6 +3,7 @@
 namespace Phpactor\DocblockParser\Ast\Tag;
 
 use Phpactor\DocblockParser\Ast\TagNode;
+use Phpactor\DocblockParser\Ast\TextNode;
 use Phpactor\DocblockParser\Ast\Token;
 use Phpactor\DocblockParser\Ast\TypeNode;
 
@@ -10,16 +11,11 @@ class ThrowsTag extends TagNode
 {
     protected const CHILD_NAMES = [
         'tag',
-        'exceptionClass'
+        'exceptionClass',
+        'text',
     ];
 
-    public ?TypeNode $exceptionClass;
-
-    public Token $tag;
-
-    public function __construct(Token $tag, ?TypeNode $exceptionClass)
+    public function __construct(public Token $tag, public ?TypeNode $exceptionClass, public ?TextNode $text)
     {
-        $this->tag = $tag;
-        $this->exceptionClass = $exceptionClass;
     }
 }

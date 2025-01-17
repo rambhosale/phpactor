@@ -8,11 +8,8 @@ final class OctalLiteralType extends IntType implements Literal, Generalizable
 {
     use LiteralTrait;
 
-    public string $value;
-
-    public function __construct(string $value)
+    public function __construct(public string $value)
     {
-        $this->value = $value;
     }
 
     public function __toString(): string
@@ -20,7 +17,7 @@ final class OctalLiteralType extends IntType implements Literal, Generalizable
         return (string)$this->value;
     }
 
-    public function value()
+    public function value(): int|float
     {
         return octdec(substr($this->value, 1));
     }

@@ -4,10 +4,10 @@ namespace Phpactor\DocblockParser\Ast;
 
 class UnknownTag extends TagNode
 {
-    public Token $name;
-
-    public function __construct(Token $name)
+    protected const CHILD_NAMES = [
+        'name'
+    ];
+    public function __construct(public Token $name)
     {
-        $this->name = $name;
     }
 }

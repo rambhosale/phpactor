@@ -13,16 +13,15 @@ use Phpactor\WorseReflection\Core\Inference\NodeContext;
 use Phpactor\WorseReflection\Core\Inference\Resolver;
 use Phpactor\WorseReflection\Core\Inference\NodeContextResolver;
 use Phpactor\WorseReflection\Core\Type;
+use Phpactor\WorseReflection\Core\TypeFactory;
+use Phpactor\WorseReflection\Core\Type\ClassStringType;
 use Phpactor\WorseReflection\Core\Type\ClassType;
 use Phpactor\WorseReflection\Core\Type\GenericClassType;
 
 class ObjectCreationExpressionResolver implements Resolver
 {
-    private GenericMapResolver $resolver;
-
-    public function __construct(GenericMapResolver $resolver)
+    public function __construct(private GenericMapResolver $resolver)
     {
-        $this->resolver = $resolver;
     }
 
     public function resolve(NodeContextResolver $resolver, Frame $frame, Node $node): NodeContext
@@ -36,6 +35,13 @@ class ObjectCreationExpressionResolver implements Resolver
         $classContext = $resolver->resolveNode($frame, $node->classTypeDesignator);
         $classType = $classContext->type();
 
+        if ($classType instanceof ClassStringType) {
+            if ($classType->className() === null) {
+                return $classContext->withType(TypeFactory::object());
+            }
+            $classType = TypeFactory::class($classType->className());
+        }
+
         if ($classType instanceof ClassType) {
             return $classContext->withType($this->resolveClassType($resolver, $frame, $node, $classType));
         }
@@ -48,7 +54,7 @@ class ObjectCreationExpressionResolver implements Resolver
     {
         try {
             $reflection = $resolver->reflector()->reflectClass($classType->name());
-        } catch (NotFound $notFound) {
+        } catch (NotFound) {
             return $classType;
         }
         if (!$reflection->methods()->has('__construct')) {

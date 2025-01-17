@@ -11,23 +11,20 @@ final class ClassMemberQuery
     const TYPE_METHOD = 'method';
     const TYPE_PROPERTY = 'property';
 
-    private $validTypes = [
+    /** @var array<string> */
+    private array $validTypes = [
         self::TYPE_CONSTANT,
         self::TYPE_METHOD,
         self::TYPE_PROPERTY
     ];
 
-    private ?Class_ $class;
-
-    private ?MemberName $memberName;
-
     private ?string $type;
 
-    private function __construct(Class_ $class = null, MemberName $memberName = null, string $type = null)
-    {
-        $this->class = $class;
-        $this->memberName = $memberName;
-
+    private function __construct(
+        private ?Class_ $class = null,
+        private ?MemberName $memberName = null,
+        ?string $type = null
+    ) {
         if (null !== $type && false === in_array($type, $this->validTypes)) {
             throw new InvalidArgumentException(sprintf(
                 'Invalid member type "%s", valid types: "%s"',
@@ -39,9 +36,9 @@ final class ClassMemberQuery
         $this->type = $type;
     }
 
-    public function __toString()
+    public function __toString(): string
     {
-        return $this->class;
+        return (string) $this->class;
     }
 
     public static function create(): ClassMemberQuery
@@ -127,7 +124,7 @@ final class ClassMemberQuery
         );
     }
 
-    public function memberName(): MemberName
+    public function memberName(): ?MemberName
     {
         return $this->memberName;
     }
@@ -150,12 +147,12 @@ final class ClassMemberQuery
         return $className == (string) $this->class;
     }
 
-    public function class(): Class_
+    public function class(): ?Class_
     {
         return $this->class;
     }
 
-    public function type(): string
+    public function type(): ?string
     {
         return $this->type;
     }

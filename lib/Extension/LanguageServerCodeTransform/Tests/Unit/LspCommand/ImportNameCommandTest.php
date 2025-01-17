@@ -2,6 +2,8 @@
 
 namespace Phpactor\Extension\LanguageServerCodeTransform\Tests\Unit\LspCommand;
 
+use Phpactor\CodeTransform\Domain\Refactor\ImportClass\NameImport;
+use function Amp\Promise\wait;
 use Amp\Promise;
 use Phpactor\CodeTransform\Domain\Exception\TransformException;
 use Phpactor\Extension\LanguageServerCodeTransform\LspCommand\ImportNameCommand;
@@ -11,7 +13,7 @@ use Phpactor\LanguageServer\Core\Command\CommandDispatcher;
 use Phpactor\LanguageServer\Core\Server\ClientApi;
 use Phpactor\LanguageServer\Core\Server\RpcClient\TestRpcClient;
 use Phpactor\LanguageServer\Core\Workspace\Workspace;
-use Phpactor\LanguageServerProtocol\ApplyWorkspaceEditResponse;
+use Phpactor\LanguageServerProtocol\ApplyWorkspaceEditResult;
 use Phpactor\LanguageServerProtocol\TextDocumentItem;
 use Phpactor\LanguageServerProtocol\TextEdit;
 use Phpactor\TestUtils\PHPUnit\TestCase;
@@ -66,7 +68,7 @@ class ImportNameCommandTest extends TestCase
             true,
             null
         )->willReturn(NameImporterResult::createResult(
-            \Phpactor\CodeTransform\Domain\Refactor\ImportClass\NameImport::forClass('Foobar'),
+            NameImport::forClass('Foobar'),
             [$this->textEditProphecy->reveal()]
         ));
 
@@ -111,9 +113,9 @@ class ImportNameCommandTest extends TestCase
 
     private function assertWorkspaceResponse(Promise $promise): void
     {
-        $expectedResponse = new ApplyWorkspaceEditResponse(true, null);
+        $expectedResponse = new ApplyWorkspaceEditResult(true, null);
         $this->rpcClient->responseWatcher()->resolveLastResponse($expectedResponse);
-        $result = \Amp\Promise\wait($promise);
+        $result = wait($promise);
         $this->assertEquals($expectedResponse, $result);
     }
 }

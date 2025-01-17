@@ -15,6 +15,18 @@ use Phpactor\WorseReflection\Core\Type\ReflectedClassType;
 class IterableTypeResolver
 {
     /**
+     * @return list<string>
+     */
+    public static function iterableClasses(): array
+    {
+        return [
+            'IteratorAggregate',
+            'Iterator',
+            'Traversable',
+            'iterable',
+        ];
+    }
+    /**
      * @param Type[] $arguments
      */
     public static function resolveIterable(ClassReflector $reflector, Type $type, array $arguments): Type
@@ -35,12 +47,7 @@ class IterableTypeResolver
             }
         }
 
-        $iterableClasses = [
-            'IteratorAggregate',
-            'Iterator',
-            'Traversable',
-            'iterable',
-        ];
+        $iterableClasses = self::iterableClasses();
 
         if (in_array($type->name()->__toString(), $iterableClasses)) {
             return self::valueTypeFromArgs($arguments);
@@ -61,7 +68,11 @@ class IterableTypeResolver
                 continue;
             }
 
-            $templateMap = $genericMapResolver->resolveClassTemplateMap($class->type(), ClassName::fromString($iterableClassName), $type instanceof GenericClassType ? $type->arguments() : []);
+            $templateMap = $genericMapResolver->resolveClassTemplateMap(
+                $class->type(),
+                ClassName::fromString($iterableClassName),
+                $type instanceof GenericClassType ? $type->arguments() : []
+            );
 
             if (null !== $templateMap) {
                 $value = $templateMap->get('TValue');
@@ -83,10 +94,7 @@ class IterableTypeResolver
         if (isset($arguments[1])) {
             return $arguments[1];
         }
-        if (isset($arguments[0])) {
-            return $arguments[0];
-        }
 
-        return new MissingType();
+        return $arguments[0] ?? new MissingType();
     }
 }

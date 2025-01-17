@@ -21,14 +21,8 @@ class ClassMoveHandler extends AbstractHandler
     private const PARAM_CONFIRMED = 'confirmed';
     private const PARAM_ADDITIONAL_MOVE_CONFIRM = 'move_related';
 
-    private ClassMover $classMove;
-
-    private string $defaultFilesystem;
-
-    public function __construct(ClassMover $classMove, string $defaultFilesystem)
+    public function __construct(private ClassMover $classMove, private string $defaultFilesystem)
     {
-        $this->classMove = $classMove;
-        $this->defaultFilesystem = $defaultFilesystem;
     }
 
     public function name(): string
@@ -67,8 +61,8 @@ class ClassMoveHandler extends AbstractHandler
         ) {
             $this->requireInput(ConfirmInput::fromNameAndLabel(
                 self::PARAM_CONFIRMED,
-                'WARNING: This command will move the class and update ALL references in the git tree.' . PHP_EOL .
-                '         It is not guaranteed to succeed. COMMIT YOUR WORK FIRST!' . PHP_EOL .
+                'WARNING: This command will move the class and update ALL references in the git tree.' . "\n" .
+                '         It is not guaranteed to succeed. COMMIT YOUR WORK FIRST!' . "\n" .
                 'Are you sure? :'
             ));
         }

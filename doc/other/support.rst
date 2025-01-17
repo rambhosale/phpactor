@@ -1,7 +1,7 @@
 Support
 =======
 
-Need help? Create a Github issue or ping the Phactor twitter account:
+Need help? Create a Github issue or ping the Phpactor Mastodon account:
 
 -  `Github Issues <https://github.com/phpactor/phpactor/issues>`__
--  Twitter [@phpactor](https://twitter.com/phpactor)
+-  `Mastodon [@phpactor] <https://phpc.social/@phpactor>`__

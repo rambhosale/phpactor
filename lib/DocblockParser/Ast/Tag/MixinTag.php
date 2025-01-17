@@ -3,7 +3,7 @@
 namespace Phpactor\DocblockParser\Ast\Tag;
 
 use Phpactor\DocblockParser\Ast\TagNode;
-use Phpactor\DocblockParser\Ast\Type\ClassNode;
+use Phpactor\DocblockParser\Ast\TypeNode;
 use Phpactor\DocblockParser\Ast\Token;
 
 class MixinTag extends TagNode
@@ -13,17 +13,11 @@ class MixinTag extends TagNode
         'class'
     ];
 
-    public ?ClassNode $class;
-
-    public Token $tag;
-
-    public function __construct(Token $tag, ?ClassNode $class)
+    public function __construct(public Token $tag, public ?TypeNode $class)
     {
-        $this->class = $class;
-        $this->tag = $tag;
     }
 
-    public function class(): ?ClassNode
+    public function class(): ?TypeNode
     {
         return $this->class;
     }

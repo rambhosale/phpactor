@@ -10,24 +10,17 @@ use RuntimeException;
 class ExtensionDocumentor implements Documentor
 {
     /**
-     * @var array<string>
-     */
-    private array $extensionFqns;
-
-    private DefinitionDocumentor $definitionDocumentor;
-
-    /**
      * @param array<string> $extensionFqns
      */
-    public function __construct(array $extensionFqns, DefinitionDocumentor $definitionDocumentor)
+    public function __construct(private array $extensionFqns, private DefinitionDocumentor $definitionDocumentor)
     {
-        $this->extensionFqns = $extensionFqns;
-        $this->definitionDocumentor = $definitionDocumentor;
     }
 
     public function document(string $commandName=''): string
     {
         $docs = [
+            '.. _ref_configuration:',
+            '',
             'Configuration',
             '=============',
             "\n",
@@ -70,7 +63,7 @@ class ExtensionDocumentor implements Documentor
             "\n",
         ];
 
-        $extension = new $extensionClass;
+        $extension = new $extensionClass();
 
         if (!$extension instanceof Extension) {
             throw new RuntimeException(sprintf(

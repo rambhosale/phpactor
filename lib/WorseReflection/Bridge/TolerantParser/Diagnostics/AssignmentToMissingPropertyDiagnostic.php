@@ -9,28 +9,13 @@ use Phpactor\WorseReflection\Core\Type;
 
 class AssignmentToMissingPropertyDiagnostic implements Diagnostic
 {
-    private ByteOffsetRange $range;
-
-    private string $classType;
-
-    private string $propertyName;
-
-    private Type $propertyType;
-
-    private bool $isSubscriptAssignment;
-
     public function __construct(
-        ByteOffsetRange $range,
-        string $classType,
-        string $propertyName,
-        Type $propertyType,
-        bool $isSubscriptAssignment
+        private ByteOffsetRange $range,
+        private string $classType,
+        private string $propertyName,
+        private Type $propertyType,
+        private bool $isSubscriptAssignment
     ) {
-        $this->range = $range;
-        $this->classType = $classType;
-        $this->propertyName = $propertyName;
-        $this->propertyType = $propertyType;
-        $this->isSubscriptAssignment = $isSubscriptAssignment;
     }
     public function range(): ByteOffsetRange
     {
@@ -65,5 +50,15 @@ class AssignmentToMissingPropertyDiagnostic implements Diagnostic
     public function isSubscriptAssignment(): bool
     {
         return $this->isSubscriptAssignment;
+    }
+
+    public function tags(): array
+    {
+        return [];
+    }
+
+    public function code(): string
+    {
+        return 'assignment_to_missing_property';
     }
 }

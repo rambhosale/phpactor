@@ -15,11 +15,8 @@ class ChangeVisiblityHandler implements Handler
     const PARAM_SOURCE = 'source';
     const PARAM_OFFSET = 'offset';
 
-    private ChangeVisiblity $changeVisiblity;
-
-    public function __construct(ChangeVisiblity $changeVisiblity)
+    public function __construct(private ChangeVisiblity $changeVisiblity)
     {
-        $this->changeVisiblity = $changeVisiblity;
     }
 
     public function name(): string
@@ -46,7 +43,7 @@ class ChangeVisiblityHandler implements Handler
         $source = $this->changeVisiblity->changeVisiblity($source, $arguments[self::PARAM_OFFSET]);
 
         return UpdateFileSourceResponse::fromPathOldAndNewSource(
-            $source->path(),
+            $source->uri()->path(),
             $arguments[self::PARAM_SOURCE],
             (string) $source
         );

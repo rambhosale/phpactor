@@ -10,16 +10,10 @@ use Phpactor\TextDocument\TextDocumentLocator;
 final class InMemoryDocumentLocator implements TextDocumentLocator
 {
     /**
-     * @var array<string, TextDocument>
+     * @param array<string, TextDocument> $documents
      */
-    private array $documents = [];
-
-    /**
-     * @param array<string, TextDocument> $textDocuments
-     */
-    private function __construct(array $textDocuments)
+    private function __construct(private array $documents)
     {
-        $this->documents = $textDocuments;
     }
 
     public function get(TextDocumentUri $uri): TextDocument
@@ -36,7 +30,6 @@ final class InMemoryDocumentLocator implements TextDocumentLocator
      */
     public static function fromTextDocuments(array $textDocuments): self
     {
-        /** @phpstan-ignore-next-line */
         return new self((array)array_combine(array_map(function (TextDocument $document): string {
             return $document->uri()->__toString();
         }, $textDocuments), array_values($textDocuments)));

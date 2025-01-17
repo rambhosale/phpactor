@@ -4,7 +4,6 @@ namespace Phpactor\Extension\LanguageServerCodeTransform\CodeAction;
 
 use Amp\CancellationToken;
 use Amp\Promise;
-use Amp\Success;
 use Phpactor\CodeTransform\Domain\SourceCode;
 use Phpactor\CodeTransform\Domain\Transformers;
 use Phpactor\Extension\LanguageServerBridge\Converter\TextDocumentConverter;
@@ -21,17 +20,11 @@ use function Amp\call;
 
 class TransformerCodeActionPovider implements DiagnosticsProvider, CodeActionProvider
 {
-    private string $title;
-
-    private Transformers $transformers;
-
-    private string $name;
-
-    public function __construct(Transformers $transformers, string $name, string $title)
-    {
-        $this->title = $title;
-        $this->transformers = $transformers;
-        $this->name = $name;
+    public function __construct(
+        private Transformers $transformers,
+        private string $name,
+        private string $title
+    ) {
     }
 
 
@@ -45,13 +38,13 @@ class TransformerCodeActionPovider implements DiagnosticsProvider, CodeActionPro
 
     public function provideDiagnostics(TextDocumentItem $textDocument, CancellationToken $cancel): Promise
     {
-        return new Success($this->getDiagnostics($textDocument, $cancel));
+        return $this->getDiagnostics($textDocument);
     }
 
     public function provideActionsFor(TextDocumentItem $textDocument, Range $range, CancellationToken $cancel): Promise
     {
         return call(function () use ($textDocument) {
-            $diagnostics = $this->getDiagnostics($textDocument);
+            $diagnostics = yield $this->getDiagnostics($textDocument);
             if (0 === count($diagnostics)) {
                 return [];
             }
@@ -79,22 +72,29 @@ class TransformerCodeActionPovider implements DiagnosticsProvider, CodeActionPro
         return $this->name;
     }
 
-    /**
-     * @return array<Diagnostic>
-     */
-    private function getDiagnostics(TextDocumentItem $textDocument): array
+    public function describe(): string
     {
-        $phpactorTextDocument = TextDocumentConverter::fromLspTextItem($textDocument);
+        return sprintf('"%s" transformer', $this->name);
+    }
 
-        return array_map(function (Diagnostic $diagnostic) {
-            $diagnostic->message = sprintf('%s (fix with "%s" code action)', $diagnostic->message, $this->title);
-            return $diagnostic;
-        }, DiagnosticsConverter::toLspDiagnostics(
-            $phpactorTextDocument,
-            $this->transformers->get($this->name)->diagnostics(
-                SourceCode::fromTextDocument(TextDocumentConverter::fromLspTextItem($textDocument))
-            )
-        ));
+    /**
+     * @return Promise<array<Diagnostic>>
+     */
+    private function getDiagnostics(TextDocumentItem $textDocument): Promise
+    {
+        return call(function () use ($textDocument) {
+            $phpactorTextDocument = TextDocumentConverter::fromLspTextItem($textDocument);
+
+            return array_map(function (Diagnostic $diagnostic) {
+                $diagnostic->message = sprintf('%s (fix with "%s" code action)', $diagnostic->message, $this->title);
+                return $diagnostic;
+            }, DiagnosticsConverter::toLspDiagnostics(
+                $phpactorTextDocument,
+                yield $this->transformers->get($this->name)->diagnostics(
+                    SourceCode::fromTextDocument(TextDocumentConverter::fromLspTextItem($textDocument))
+                )
+            ));
+        });
     }
 
     private function kind(): string

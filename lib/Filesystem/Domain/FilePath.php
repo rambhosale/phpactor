@@ -2,71 +2,53 @@
 
 namespace Phpactor\Filesystem\Domain;
 
+use Phpactor\TextDocument\TextDocumentUri;
 use RuntimeException;
 use SplFileInfo;
-use InvalidArgumentException;
 use Symfony\Component\Filesystem\Path;
 
 final class FilePath
 {
-    private $path;
-
-    private function __construct(string $path)
+    private function __construct(private TextDocumentUri $uri)
     {
-        if (false === Path::isAbsolute($path)) {
-            throw new InvalidArgumentException(sprintf(
-                'File path must be absolute, but "%s" given',
-                $path
-            ));
-        }
-
-        $this->path = $path;
     }
 
-    public function __toString()
+    public function __toString(): string
     {
-        return $this->path;
+        return $this->uri->path();
+    }
+
+    public function uriAsString(): string
+    {
+        return $this->uri->__toString();
     }
 
     public static function fromString(string $string): FilePath
     {
-        $url = parse_url($string);
-
-        if (false === $url) {
-            throw new RuntimeException(sprintf('Cannot guess path from "%s"', $string));
-        }
-
-        $url += ['scheme' => null, 'path' => null];
-
-        ['scheme' => $scheme, 'path' => $path] = $url;
-
-        if (null === $path) {
-            throw new RuntimeException(sprintf('No path info from URI "%s"', $string));
-        }
-
-        if (null !== $scheme && 'file' !== $scheme) {
-            throw new RuntimeException(sprintf('Unsupported scheme "%s" for path "%s"', $scheme, $string));
-        }
-
-        return new self((string)$path);
+        $textDocumentUri = TextDocumentUri::fromString($string);
+        return new self($textDocumentUri);
     }
 
+    /**
+     * @param array<string> $parts
+     */
     public static function fromParts(array $parts): FilePath
     {
         $path = Path::join(...$parts);
-        if (substr($path, 0, 1) !== '/') {
-            $path = '/'.$path;
+        if (!Path::isAbsolute($path)) {
+            // Not sure if this makes sense… Maybe it should just throw?
+            $path = Path::makeAbsolute($path, '/');
         }
 
-        return new self($path);
+        return self::fromString($path);
     }
 
     public static function fromSplFileInfo(SplFileInfo $fileInfo): FilePath
     {
-        return new self((string) $fileInfo);
+        return self::fromString((string) $fileInfo);
     }
 
-    public static function fromUnknown($path): FilePath
+    public static function fromFilePathOrString(FilePath|string $path): FilePath
     {
         if ($path instanceof FilePath) {
             return $path;
@@ -75,32 +57,22 @@ final class FilePath
         if (is_string($path)) {
             return self::fromString($path);
         }
-
-        if (is_array($path)) {
-            return self::fromParts($path);
-        }
-
-        if ($path instanceof SplFileInfo) {
-            return self::fromSplFileInfo($path);
-        }
-
-        throw new RuntimeException(sprintf(
-            'Do not know how to create FilePath from "%s"',
-            is_object($path) ? get_class($path) : gettype($path)
-        ));
     }
 
-    public function isDirectory()
+    public function isDirectory(): bool
     {
-        return is_dir($this->path);
+        return is_dir($this->uri->path());
     }
 
-    public function asSplFileInfo()
+    public function asSplFileInfo(): SplFileInfo
     {
-        return new SplFileInfo($this->path());
+        if ($this->uri->scheme() === 'file') {
+            return new SplFileInfo($this->uri->path());
+        }
+        return new SplFileInfo($this->uri->__toString());
     }
 
-    public function makeAbsoluteFromString(string $path)
+    public function makeAbsoluteFromString(string $path): FilePath
     {
         if (Path::isAbsolute($path)) {
             $path = self::fromString($path);
@@ -121,20 +93,15 @@ final class FilePath
 
     public function extension(): string
     {
-        return Path::getExtension($this->path);
+        return Path::getExtension($this->uri->path());
     }
 
-    public function concatPath(FilePath $path)
+    public function isWithin(FilePath $path): bool
     {
-        return new self(Path::join($this->path(), (string) $path));
+        return Path::isBasePath($path->path(), $this->path());
     }
 
-    public function isWithin(FilePath $path)
-    {
-        return 0 === strpos($this->path(), $path->path().'/');
-    }
-
-    public function isWithinOrSame(FilePath $path)
+    public function isWithinOrSame(FilePath $path): bool
     {
         if ($this->path() == $path->path()) {
             return true;
@@ -148,8 +115,8 @@ final class FilePath
         return basename($this->path()) == $name;
     }
 
-    public function path()
+    public function path(): string
     {
-        return $this->path;
+        return $this->uri->path();
     }
 }

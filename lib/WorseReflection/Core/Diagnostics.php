@@ -7,24 +7,27 @@ use Countable;
 use IteratorAggregate;
 use Phpactor\TextDocument\ByteOffsetRange;
 use RuntimeException;
+use Stringable;
 use Traversable;
 
 /**
- * @implements IteratorAggregate<Diagnostic>
+ * @template-covariant T of Diagnostic
+ * @implements IteratorAggregate<T>
  */
-final class Diagnostics implements IteratorAggregate, Countable
+final class Diagnostics implements IteratorAggregate, Countable, Stringable
 {
     /**
-     * @var Diagnostic[]
+     * @param T[] $diagnostics
      */
-    private array $diagnostics;
-
-    /**
-     * @param Diagnostic[] $diagnostics
-     */
-    public function __construct(array $diagnostics)
+    public function __construct(private array $diagnostics)
     {
-        $this->diagnostics = $diagnostics;
+    }
+
+    public function __toString(): string
+    {
+        return implode("\n", array_map(function (Diagnostic $diagnostic) {
+            return sprintf('[%s] %s', $diagnostic->severity()->toString(), $diagnostic->message());
+        }, $this->diagnostics));
     }
 
     public function getIterator(): Traversable
@@ -38,11 +41,35 @@ final class Diagnostics implements IteratorAggregate, Countable
     }
 
     /**
-     * @param class-string $classFqn
+     * @template TD of Diagnostic
+     * @param class-string<TD> $classFqn
+     * @return Diagnostics<TD>
      */
     public function byClass(string $classFqn): self
     {
         return new self(array_filter($this->diagnostics, fn (Diagnostic $d) => $d instanceof $classFqn));
+    }
+
+    /**
+     * @template DF of Diagnostic
+     * @param class-string<DF> $classFqns
+     * @return Diagnostics<DF>
+     */
+    public function byClasses(string ...$classFqns): self
+    {
+        /** @phpstan-ignore-next-line ??? */
+        return new self(array_filter(
+            $this->diagnostics,
+            function (Diagnostic $d) use ($classFqns) {
+                foreach ($classFqns as $fqn) {
+                    if ($d instanceof $fqn) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        ));
     }
 
     public function at(int $index): Diagnostic
@@ -57,6 +84,9 @@ final class Diagnostics implements IteratorAggregate, Countable
         return $this->diagnostics[$index];
     }
 
+    /**
+     * @return Diagnostics<T>
+     */
     public function withinRange(ByteOffsetRange $byteOffsetRange): self
     {
         return new self(array_filter(
@@ -67,6 +97,9 @@ final class Diagnostics implements IteratorAggregate, Countable
         ));
     }
 
+    /**
+     * @return Diagnostics<T>
+     */
     public function containingRange(ByteOffsetRange $byteOffsetRange): self
     {
         return new self(array_filter(

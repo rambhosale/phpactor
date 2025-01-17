@@ -4,6 +4,7 @@ namespace Phpactor\Indexer\Adapter\Filesystem;
 
 use Phpactor\Filesystem\Domain\FilePath;
 use Phpactor\Filesystem\Domain\Filesystem;
+use Phpactor\Indexer\Adapter\Php\FileInfoPharExpandingIterator;
 use Phpactor\Indexer\Model\FileList;
 use Phpactor\Indexer\Model\FileListProvider;
 use SplFileInfo;
@@ -12,29 +13,16 @@ use Phpactor\Indexer\Model\Index;
 class FilesystemFileListProvider implements FileListProvider
 {
     /**
-     * @var array<string>
-     */
-    private array $excludePatterns;
-
-    /**
-     * @var array<string>
-     */
-    private array $includePatterns;
-
-    private Filesystem $filesystem;
-
-    /**
-     * @param array<string> $excludePatterns
-     * @param array<string> $includePatterns
+     * @param list<string> $excludePatterns
+     * @param list<string> $includePatterns
+     * @param list<string> $supportedExtensions
      */
     public function __construct(
-        Filesystem $filesystem,
-        array $includePatterns = [],
-        array $excludePatterns = []
+        private Filesystem $filesystem,
+        private array $includePatterns = [],
+        private array $excludePatterns = [],
+        private array $supportedExtensions = ['php', 'phar'],
     ) {
-        $this->filesystem = $filesystem;
-        $this->includePatterns = $includePatterns;
-        $this->excludePatterns = $excludePatterns;
     }
 
     public function provideFileList(Index $index, ?string $subPath = null): FileList
@@ -43,15 +31,10 @@ class FilesystemFileListProvider implements FileListProvider
             return FileList::fromSingleFilePath($subPath);
         }
 
-        $files = $this->filesystem->fileList()->phpFiles();
-
-        if ($this->includePatterns) {
-            $files = $files->includePatterns($this->includePatterns);
-        }
-
-        if ($this->excludePatterns) {
-            $files = $files->excludePatterns($this->excludePatterns);
-        }
+        $files = $this->filesystem->fileList()
+            ->byExtensions($this->supportedExtensions)
+            ->includeAndExclude($this->includePatterns, $this->excludePatterns)
+        ;
 
         if ($subPath) {
             $files = $files->within(FilePath::fromString($subPath));
@@ -63,6 +46,11 @@ class FilesystemFileListProvider implements FileListProvider
             });
         }
 
-        return FileList::fromInfoIterator($files->getSplFileInfoIterator());
+        return FileList::fromInfoIterator(
+            new FileInfoPharExpandingIterator(
+                $files->getSplFileInfoIterator(),
+                $this->supportedExtensions,
+            )
+        );
     }
 }

@@ -9,7 +9,6 @@ use Microsoft\PhpParser\Node\Statement\InterfaceDeclaration;
 use Phpactor\WorseReflection\Core\ClassHierarchyResolver;
 use Phpactor\WorseReflection\Core\Reflection\Collection\ClassLikeReflectionMemberCollection;
 use Phpactor\WorseReflection\Core\Reflection\Collection\ReflectionClassLikeCollection;
-use Phpactor\WorseReflection\Core\Reflection\Collection\ReflectionInterfaceCollection;
 
 use Phpactor\WorseReflection\Core\Reflection\Collection\ReflectionConstantCollection as CoreReflectionConstantCollection;
 use Phpactor\WorseReflection\Core\Reflection\Collection\ReflectionInterfaceCollection as CoreReflectionInterfaceCollection;
@@ -19,7 +18,7 @@ use Phpactor\WorseReflection\Core\ClassName;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionClassLike;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionMember;
 use Phpactor\WorseReflection\Core\ServiceLocator;
-use Phpactor\WorseReflection\Core\SourceCode;
+use Phpactor\TextDocument\TextDocument;
 use Phpactor\WorseReflection\Core\Util\NodeUtil;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionInterface as CoreReflectionInterface;
 use Phpactor\WorseReflection\Core\DocBlock\DocBlock;
@@ -27,18 +26,7 @@ use Phpactor\WorseReflection\Core\Reflection\Collection\ReflectionMemberCollecti
 
 class ReflectionInterface extends AbstractReflectionClass implements CoreReflectionInterface
 {
-    private ServiceLocator $serviceLocator;
-
-    private InterfaceDeclaration $node;
-
-    private SourceCode $sourceCode;
-
-    private ?ReflectionInterfaceCollection $parents = null;
-
-    /**
-     * @var array<string, bool>
-     */
-    private array $visited;
+    private ?CoreReflectionInterfaceCollection $parents = null;
 
     private ?ClassLikeReflectionMemberCollection $ownMembers = null;
 
@@ -48,15 +36,11 @@ class ReflectionInterface extends AbstractReflectionClass implements CoreReflect
      * @param array<string,bool> $visited
      */
     public function __construct(
-        ServiceLocator $serviceLocator,
-        SourceCode $sourceCode,
-        InterfaceDeclaration $node,
-        array $visited = []
+        private ServiceLocator $serviceLocator,
+        private TextDocument $sourceCode,
+        private InterfaceDeclaration $node,
+        private array $visited = []
     ) {
-        $this->serviceLocator = $serviceLocator;
-        $this->node = $node;
-        $this->sourceCode = $sourceCode;
-        $this->visited = $visited;
     }
 
     /**
@@ -107,7 +91,7 @@ class ReflectionInterface extends AbstractReflectionClass implements CoreReflect
             return $this->parents;
         }
 
-        $this->parents = ReflectionInterfaceCollection::fromInterfaceDeclaration($this->serviceLocator, $this->node, $this->visited);
+        $this->parents = CoreReflectionInterfaceCollection::fromInterfaceDeclaration($this->serviceLocator, $this->node, $this->visited);
 
         return $this->parents;
     }
@@ -136,7 +120,7 @@ class ReflectionInterface extends AbstractReflectionClass implements CoreReflect
         return false;
     }
 
-    public function methods(ReflectionClassLike $contextClass = null): CoreReflectionMethodCollection
+    public function methods(?ReflectionClassLike $contextClass = null): CoreReflectionMethodCollection
     {
         return $this->members()->methods();
     }
@@ -146,7 +130,7 @@ class ReflectionInterface extends AbstractReflectionClass implements CoreReflect
         return ClassName::fromString((string) $this->node()->getNamespacedName());
     }
 
-    public function sourceCode(): SourceCode
+    public function sourceCode(): TextDocument
     {
         return $this->sourceCode;
     }
@@ -162,6 +146,11 @@ class ReflectionInterface extends AbstractReflectionClass implements CoreReflect
     public function hierarchy(): ReflectionClassLikeCollection
     {
         return ReflectionClassLikeCollection::fromReflections((new ClassHierarchyResolver())->resolve($this));
+    }
+
+    public function classLikeType(): string
+    {
+        return 'interface';
     }
 
     /**

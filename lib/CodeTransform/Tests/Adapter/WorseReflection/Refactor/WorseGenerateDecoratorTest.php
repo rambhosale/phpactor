@@ -2,6 +2,7 @@
 
 namespace Phpactor\CodeTransform\Tests\Adapter\WorseReflection\Refactor;
 
+use Generator;
 use Phpactor\CodeTransform\Adapter\WorseReflection\Refactor\WorseGenerateDecorator;
 use Phpactor\CodeTransform\Tests\Adapter\WorseReflection\WorseTestCase;
 use Phpactor\CodeTransform\Domain\SourceCode;
@@ -9,7 +10,7 @@ use Phpactor\CodeTransform\Domain\SourceCode;
 class WorseGenerateDecoratorTest extends WorseTestCase
 {
     /**
-     * @dataProvider provideDector
+     * @dataProvider provideGenerateDecorator
      */
     public function testGenerateDecorator(string $test): void
     {
@@ -28,17 +29,15 @@ class WorseGenerateDecoratorTest extends WorseTestCase
     }
 
     /**
-     * @return array<string,array{string}>
+     * @return Generator<string,array{string}>
      */
-    public function provideDector(): array
+    public function provideGenerateDecorator(): Generator
     {
-        return [
-            'decorating untyped method' => [ 'generateDecorator1.test'],
-            'decorating method with parameters' => [ 'generateDecorator2.test'],
-            'decorating method with return type' => [ 'generateDecorator3.test'],
-            'decorating method with default values' => [ 'generateDecorator4.test'],
-            'decorating method with void' => [ 'generateDecorator5.test'],
-            'decorating multiple methods' => [ 'generateDecorator6.test']
-        ];
+        yield 'decorating untyped method' => [ 'generateDecorator1.test'];
+        yield 'decorating method with parameters' => [ 'generateDecorator2.test'];
+        yield 'decorating method with return type' => [ 'generateDecorator3.test'];
+        yield 'decorating method with default values' => [ 'generateDecorator4.test'];
+        yield 'decorating method with void' => [ 'generateDecorator5.test'];
+        yield 'decorating multiple methods' => [ 'generateDecorator6.test'];
     }
 }

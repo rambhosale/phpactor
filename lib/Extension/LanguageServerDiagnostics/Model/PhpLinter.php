@@ -15,11 +15,8 @@ use function Amp\call;
 
 final class PhpLinter
 {
-    private string $phpBin;
-
-    public function __construct(string $phpBin)
+    public function __construct(private string $phpBin)
     {
-        $this->phpBin = $phpBin;
     }
 
     /**
@@ -28,14 +25,22 @@ final class PhpLinter
     public function lint(TextDocument $textDocument): Promise
     {
         return call(function () use ($textDocument) {
-            $process = new Process(sprintf(
-                '%s -l',
-                $this->phpBin
-            ));
+            $process = new Process([
+                $this->phpBin,
+                '-l',
+                '-d',
+                'display_errors=stdout',
+            ]);
             $pid = yield $process->start();
             yield $process->getStdin()->write($textDocument->__toString());
             yield $process->getStdin()->end();
-            $err = yield buffer($process->getStderr());
+            $exitCode = yield $process->join();
+
+            if ($exitCode == 0) {
+                return [];
+            }
+
+            $err = yield buffer($process->getStdout());
 
             if (!$err) {
                 return [];
@@ -50,12 +55,12 @@ final class PhpLinter
 
             return [
                 new Diagnostic(
-                    new Range(
-                        new Position($line, $range->start()->col()),
-                        new Position($line, $range->end()->col())
+                    range: new Range(
+                        new Position($line, $range->start()->col() - 1),
+                        new Position($line, $range->end()->col() - 1)
                     ),
-                    $err,
-                    DiagnosticSeverity::ERROR
+                    message: $err,
+                    severity: DiagnosticSeverity::ERROR
                 )
             ];
         });

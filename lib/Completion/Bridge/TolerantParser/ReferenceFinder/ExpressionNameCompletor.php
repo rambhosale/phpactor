@@ -5,11 +5,14 @@ namespace Phpactor\Completion\Bridge\TolerantParser\ReferenceFinder;
 use Generator;
 use Microsoft\PhpParser\Node;
 use Microsoft\PhpParser\Node\Expression\ObjectCreationExpression;
+use Microsoft\PhpParser\Node\Expression\ScopedPropertyAccessExpression;
+use Microsoft\PhpParser\Node\QualifiedName;
 use Phpactor\Completion\Bridge\TolerantParser\CompletionContext;
 use Phpactor\Completion\Bridge\TolerantParser\TolerantCompletor;
 use Phpactor\Completion\Core\Completor\NameSearcherCompletor as CoreNameSearcherCompletor;
 use Phpactor\Completion\Core\DocumentPrioritizer\DocumentPrioritizer;
 use Phpactor\Completion\Core\Formatter\ObjectFormatter;
+use Phpactor\Name\NameUtil;
 use Phpactor\ReferenceFinder\NameSearcher;
 use Phpactor\ReferenceFinder\Search\NameSearchResult;
 use Phpactor\TextDocument\ByteOffset;
@@ -18,19 +21,16 @@ use Phpactor\TextDocument\TextDocumentUri;
 
 class ExpressionNameCompletor extends CoreNameSearcherCompletor implements TolerantCompletor
 {
-    private ObjectFormatter $snippetFormatter;
-
     public function __construct(
         NameSearcher $nameSearcher,
-        ObjectFormatter $snippetFormatter,
-        DocumentPrioritizer $prioritizer = null
+        private ObjectFormatter $snippetFormatter,
+        ?DocumentPrioritizer $prioritizer = null
     ) {
         parent::__construct($nameSearcher, $prioritizer);
-
-        $this->snippetFormatter = $snippetFormatter;
     }
 
-
+    // 1. If no namespace separator  - search by short name
+    // 2. If namespace separator - resolve namespace, search by FQN
     public function complete(Node $node, TextDocument $source, ByteOffset $offset): Generator
     {
         $parent = $node->parent;
@@ -39,7 +39,13 @@ class ExpressionNameCompletor extends CoreNameSearcherCompletor implements Toler
             return true;
         }
 
-        $suggestions = $this->completeName($node, $source->uri(), $node);
+        if ($node instanceof ScopedPropertyAccessExpression) {
+            return true;
+        }
+
+        $name = $this->resolveName($node);
+
+        $suggestions = $this->completeName($name, $source->uri(), $node);
 
         yield from $suggestions;
 
@@ -84,5 +90,18 @@ class ExpressionNameCompletor extends CoreNameSearcherCompletor implements Toler
         }
 
         return !($parent instanceof ObjectCreationExpression);
+    }
+
+    private function resolveName(Node $node): string
+    {
+        if ($node instanceof ScopedPropertyAccessExpression) {
+            $token = $node->memberName;
+            return (string)$token->getText($node->getFileContents());
+        }
+        $name = $node instanceof QualifiedName ? $node->__toString() : '';
+        if ($node instanceof QualifiedName && NameUtil::isQualified($name)) {
+            $name = NameUtil::toFullyQualified((string)$node->getResolvedName());
+        }
+        return $name ?: '';
     }
 }

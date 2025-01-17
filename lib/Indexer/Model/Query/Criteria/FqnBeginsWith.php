@@ -8,11 +8,8 @@ use Phpactor\Indexer\Model\Record\HasFullyQualifiedName;
 
 class FqnBeginsWith extends Criteria
 {
-    private string $name;
-
-    public function __construct(string $name)
+    public function __construct(private string $name)
     {
-        $this->name = $name;
     }
 
     public function isSatisfiedBy(Record $record): bool
@@ -25,6 +22,6 @@ class FqnBeginsWith extends Criteria
             return false;
         }
 
-        return 0 === strpos($record->fqn()->__toString(), $this->name);
+        return str_starts_with($record->fqn()->__toString(), $this->name);
     }
 }

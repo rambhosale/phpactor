@@ -5,6 +5,8 @@ namespace Phpactor\WorseReflection\Core;
 use ArrayIterator;
 use Closure;
 use IteratorAggregate;
+use Phpactor\WorseReflection\Core\Type\ClassLikeType;
+use Phpactor\WorseReflection\Core\Type\MissingType;
 use Traversable;
 
 /**
@@ -14,16 +16,15 @@ use Traversable;
 final class Types implements IteratorAggregate
 {
     /**
-     * @var T[]
-     */
-    private array $types;
-
-    /**
      * @param T[] $types
      */
-    public function __construct(array $types)
+    public function __construct(private array $types)
     {
-        $this->types = $types;
+    }
+
+    public function __toString(): string
+    {
+        return implode(', ', array_map(fn (Type $t) => $t->__toString(), $this->types));
     }
 
     public function getIterator(): Traversable
@@ -36,7 +37,7 @@ final class Types implements IteratorAggregate
      */
     public function firstOrNull(): ?Type
     {
-        if (empty($this->types)) {
+        if ($this->types === []) {
             return null;
         }
 
@@ -45,8 +46,9 @@ final class Types implements IteratorAggregate
 
     /**
      * @return Types<T>
+     * @param Closure(Type): bool $predicate
      */
-    public function filter(Closure $predicate): self
+    public function filter(Closure $predicate): Types
     {
         return new self(array_filter($this->types, $predicate));
     }
@@ -63,5 +65,20 @@ final class Types implements IteratorAggregate
         }
 
         return new self($merged);
+    }
+
+    /**
+     * Retrurns all class-like types
+     * @return Types<Type&ClassLikeType>
+     */
+    public function classLike(): Types
+    {
+        // @phpstan-ignore-next-line no support for conditional types https://github.com/phpstan/phpstan/issues/3853
+        return $this->filter(fn (Type $type) => $type instanceof ClassLikeType);
+    }
+
+    public function at(int $index): Type
+    {
+        return $this->types[$index] ?? new MissingType();
     }
 }

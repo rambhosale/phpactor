@@ -30,7 +30,7 @@ class ReflectionMethodTest extends IntegrationTestCase
         $assertion($class->methods(), $this->logger());
     }
 
-    public function provideReflectionMethod()
+    public function provideReflectionMethod(): Generator
     {
         yield 'It reflects a method' => [
             <<<'EOT'
@@ -141,7 +141,7 @@ class ReflectionMethodTest extends IntegrationTestCase
                 $this->assertEquals(TypeFactory::array(), $methods->get('method4')->returnType());
                 $this->assertEquals(ClassName::fromString('Test\Barfoo'), $methods->get('method5')->returnType()->name);
                 $this->assertEquals(ClassName::fromString('Acme\Post'), $methods->get('method6')->returnType()->name);
-                $this->assertEquals(ClassName::fromString('Test\Foobar'), $methods->get('method7')->returnType()->name);
+                $this->assertEquals('self(Test\Foobar)', $methods->get('method7')->returnType()->__toString());
                 $this->assertEquals(TypeFactory::iterable(), $methods->get('method8')->returnType());
                 $this->assertEquals(TypeFactory::callable(), $methods->get('method9')->returnType());
                 $this->assertEquals(TypeFactory::resource(), $methods->get('method10')->returnType());
@@ -513,7 +513,7 @@ class ReflectionMethodTest extends IntegrationTestCase
                 $this->assertStringContainsString(<<<EOT
                     Hello this is a docblock.
                     EOT
-                , $methods->get('barfoo')->docblock()->raw());
+                    , $methods->get('barfoo')->docblock()->raw());
             },
         ];
         yield 'It returns the formatted docblock' => [
@@ -540,7 +540,7 @@ class ReflectionMethodTest extends IntegrationTestCase
 
                     Yes?
                     EOT
-                , $methods->get('barfoo')->docblock()->formatted());
+                    , $methods->get('barfoo')->docblock()->formatted());
             },
         ];
         yield 'It returns true if the method is static' => [
@@ -795,7 +795,7 @@ class ReflectionMethodTest extends IntegrationTestCase
         $assertion($class);
     }
 
-    public function provideReflectionMethodCollection()
+    public function provideReflectionMethodCollection(): array
     {
         return [
             'Only methods belonging to a given class' => [

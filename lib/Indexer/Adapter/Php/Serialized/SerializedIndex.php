@@ -9,11 +9,8 @@ use SplFileInfo;
 
 class SerializedIndex implements Index
 {
-    private FileRepository $repository;
-
-    public function __construct(FileRepository $repository)
+    public function __construct(private FileRepository $repository)
     {
-        $this->repository = $repository;
     }
 
     public function lastUpdate(): int
@@ -35,7 +32,7 @@ class SerializedIndex implements Index
     {
         try {
             $mtime = $fileInfo->getCTime();
-        } catch (RuntimeException $statFailed) {
+        } catch (RuntimeException) {
             // file likely doesn't exist
             return false;
         }

@@ -6,20 +6,19 @@ use Iterator;
 use FilterIterator;
 use RuntimeException;
 use SplFileInfo;
+use function get_debug_type;
+use function preg_match;
+use function sprintf;
+use function version_compare;
 
 class FilterPhpVersionDirectoryIterator extends FilterIterator
 {
     /**
-     * @var string In the form of "major.minor.release[extra]"
-     * @see https://www.php.net/manual/en/reserved.constants.php#reserved.constants.core
+     *      @see https://www.php.net/manual/en/reserved.constants.php#reserved.constants.core
      */
-    private string $phpVersion;
-
-    public function __construct(Iterator $iterator, string $phpVersion)
+    public function __construct(Iterator $iterator, private string $phpVersion)
     {
         parent::__construct($iterator);
-
-        $this->phpVersion = $phpVersion;
     }
 
 
@@ -30,7 +29,7 @@ class FilterPhpVersionDirectoryIterator extends FilterIterator
             throw new RuntimeException(
                 sprintf(
                     'Expected instance of "\SplFileInfo", got "%s".',
-                    \is_object($file) ? \get_class($file) : \gettype($file)
+                    get_debug_type($file)
                 )
             );
         }

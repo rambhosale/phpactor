@@ -3,9 +3,11 @@
 namespace Phpactor\Extension\LanguageServerIndexer\Tests\Unit;
 
 use Phpactor\Extension\LanguageServer\LanguageServerExtension;
+use Phpactor\LanguageServerProtocol\ClientCapabilities;
+use Phpactor\LanguageServerProtocol\InitializeParams;
+use Phpactor\LanguageServerProtocol\WindowClientCapabilities;
 use Phpactor\LanguageServer\LanguageServerBuilder;
 use Phpactor\LanguageServer\Test\LanguageServerTester;
-use Phpactor\LanguageServer\Test\ProtocolFactory;
 use Phpactor\Extension\LanguageServerIndexer\Tests\IntegrationTestCase;
 use function Amp\Promise\wait;
 use function Amp\delay;
@@ -20,7 +22,10 @@ class IndexerHandlerTest extends IntegrationTestCase
             LanguageServerExtension::PARAM_FILE_EVENTS => false,
         ]);
         $this->tester = $container->get(LanguageServerBuilder::class)->tester(
-            ProtocolFactory::initializeParams($this->workspace()->path())
+            new InitializeParams(
+                rootUri: $this->workspace()->path(),
+                capabilities: new ClientCapabilities(window: new WindowClientCapabilities(workDoneProgress: true))
+            )
         );
     }
 
@@ -80,7 +85,10 @@ class IndexerHandlerTest extends IntegrationTestCase
         $tester = $this->container([
             'indexer.enabled_watchers' => ['will_die'],
         ])->get(LanguageServerBuilder::class)->tester(
-            ProtocolFactory::initializeParams($this->workspace()->path())
+            new InitializeParams(
+                rootUri: $this->workspace()->path(),
+                capabilities: new ClientCapabilities(window: new WindowClientCapabilities(workDoneProgress: true))
+            )
         );
 
         $tester->initialize();

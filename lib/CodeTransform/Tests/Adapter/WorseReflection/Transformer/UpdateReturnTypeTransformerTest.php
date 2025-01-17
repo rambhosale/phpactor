@@ -8,6 +8,7 @@ use Phpactor\CodeTransform\Domain\Diagnostic;
 use Phpactor\CodeTransform\Domain\SourceCode;
 use Phpactor\CodeTransform\Tests\Adapter\WorseReflection\WorseTestCase;
 use Phpactor\WorseReflection\Reflector;
+use function Amp\Promise\wait;
 
 class UpdateReturnTypeTransformerTest extends WorseTestCase
 {
@@ -23,7 +24,7 @@ class UpdateReturnTypeTransformerTest extends WorseTestCase
         );
         $reflector = $this->reflectorForWorkspace($example);
         $transformer = $this->createTransformer($reflector);
-        $transformed = $transformer->transform($source)->apply($source);
+        $transformed = wait($transformer->transform($source))->apply($source);
         self::assertEquals($expected, $transformed);
     }
 
@@ -110,6 +111,54 @@ class UpdateReturnTypeTransformerTest extends WorseTestCase
                 EOT
         ];
 
+        yield 'update nullable type' => [
+            <<<'EOT'
+                <?php
+
+                use Arg\Foo;
+
+                interface Animal
+                {
+                    public function jump(): ?Arg\Foo;
+                }
+                EOT
+            ,
+            <<<'EOT'
+                <?php
+
+                use Arg\Foo;
+
+                interface Animal
+                {
+                    public function jump(): ?Foo;
+                }
+                EOT
+        ];
+
+        yield 'update nullable type unions' => [
+            <<<'EOT'
+                <?php
+
+                use Arg\Foo;
+
+                interface Animal
+                {
+                    public function jump(): ?Arg\Foo|int;
+                }
+                EOT
+            ,
+            <<<'EOT'
+                <?php
+
+                use Arg\Foo;
+
+                interface Animal
+                {
+                    public function jump(): ?Foo|int;
+                }
+                EOT
+        ];
+
         yield 'add multipe return types' => [
             <<<'EOT'
                 <?php
@@ -174,6 +223,74 @@ class UpdateReturnTypeTransformerTest extends WorseTestCase
                 }
                 EOT
         ];
+        yield 'adds false type' => [
+            <<<'EOT'
+                <?php
+
+                class Foobar {
+                    private function foo()
+                    {
+                        return $this->baz();
+                    }
+
+                    private function baz(): string|false
+                    {
+                    }
+                }
+                EOT
+            ,
+            <<<'EOT'
+                <?php
+
+                class Foobar {
+                    private function foo(): string|false
+                    {
+                        return $this->baz();
+                    }
+
+                    private function baz(): string|false
+                    {
+                    }
+                }
+                EOT
+        ];
+        yield 'adds array shape type' => [
+            <<<'EOT'
+                <?php
+
+                class Foobar {
+                    private function foo()
+                    {
+                        return $this->baz();
+                    }
+
+                    /**
+                     * @return array{string,string}
+                     */
+                    private function baz(): array
+                    {
+                    }
+                }
+                EOT
+            ,
+            <<<'EOT'
+                <?php
+
+                class Foobar {
+                    private function foo(): array
+                    {
+                        return $this->baz();
+                    }
+
+                    /**
+                     * @return array{string,string}
+                     */
+                    private function baz(): array
+                    {
+                    }
+                }
+                EOT
+        ];
     }
 
     /**
@@ -185,7 +302,7 @@ class UpdateReturnTypeTransformerTest extends WorseTestCase
         $source = SourceCode::fromString($example);
         $reflector = $this->reflectorForWorkspace($example);
         $transformer = $this->createTransformer($reflector);
-        $diagnostics = array_map(fn (Diagnostic $d) => $d->message(), iterator_to_array($transformer->diagnostics($source)));
+        $diagnostics = array_map(fn (Diagnostic $d) => $d->message(), iterator_to_array(wait($transformer->diagnostics($source))));
         self::assertEquals($expected, $diagnostics);
     }
 

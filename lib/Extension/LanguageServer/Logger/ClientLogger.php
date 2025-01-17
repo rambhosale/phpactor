@@ -7,14 +7,8 @@ use Psr\Log\LoggerInterface;
 
 class ClientLogger implements LoggerInterface
 {
-    private LoggerInterface $innerLogger;
-
-    private ClientApi $client;
-
-    public function __construct(ClientApi $client, LoggerInterface $innerLogger)
+    public function __construct(private ClientApi $client, private LoggerInterface $innerLogger)
     {
-        $this->innerLogger = $innerLogger;
-        $this->client = $client;
     }
 
 
@@ -72,6 +66,6 @@ class ClientLogger implements LoggerInterface
 
     public function log($level, $message, array $context = []): void
     {
-        $this->innerLogger->log($message, $context);
+        $this->innerLogger->log($level, $message, $context);
     }
 }

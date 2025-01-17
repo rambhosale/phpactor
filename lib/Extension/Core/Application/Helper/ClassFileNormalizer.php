@@ -9,12 +9,8 @@ use Phpactor\Phpactor;
 
 class ClassFileNormalizer
 {
-    private ClassToFileFileToClass $fileClassConverter;
-
-    public function __construct(
-        ClassToFileFileToClass $fileClassConverter
-    ) {
-        $this->fileClassConverter = $fileClassConverter;
+    public function __construct(private ClassToFileFileToClass $fileClassConverter)
+    {
     }
 
     public function normalizeToFile(string $classOrFile): string
@@ -23,7 +19,7 @@ class ClassFileNormalizer
             return (string) $this->classToFile($classOrFile);
         }
 
-        return Phpactor::normalizePath($classOrFile);
+        return $classOrFile;
     }
 
     public function normalizeToClass(string $classOrFile): string

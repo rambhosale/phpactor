@@ -3,11 +3,16 @@
 namespace Phpactor\WorseReflection\Core\Inference;
 
 use Microsoft\PhpParser\Node;
+use Microsoft\PhpParser\Node\Attribute;
 use Microsoft\PhpParser\Node\Expression\CallExpression;
+use Microsoft\PhpParser\Node\Expression\MatchExpression;
 use Microsoft\PhpParser\Node\Expression\MemberAccessExpression;
 use Microsoft\PhpParser\Node\Expression\ObjectCreationExpression;
+use Phpactor\WorseReflection\Bridge\TolerantParser\Reflection\ReflectionAttribute;
+use Phpactor\WorseReflection\Bridge\TolerantParser\Reflection\ReflectionMatchExpression;
 use Phpactor\WorseReflection\Bridge\TolerantParser\Reflection\ReflectionMethodCall;
 use Phpactor\WorseReflection\Bridge\TolerantParser\Reflection\ReflectionObjectCreationExpression as PhpactorReflectionObjectCreationExpression;
+use Phpactor\WorseReflection\Bridge\TolerantParser\Reflection\ReflectionStaticMemberAccess;
 use Phpactor\WorseReflection\Core\Exception\CouldNotResolveNode;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionNode;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionObjectCreationExpression;
@@ -17,11 +22,8 @@ use Phpactor\WorseReflection\Bridge\TolerantParser\Reflection\ReflectionStaticMe
 
 class NodeReflector
 {
-    private ServiceLocator $services;
-
-    public function __construct(ServiceLocator $services)
+    public function __construct(private ServiceLocator $services)
     {
-        $this->services = $services;
     }
 
     public function reflectNode(Frame $frame, Node $node): ReflectionNode
@@ -37,6 +39,17 @@ class NodeReflector
         if ($node instanceof ObjectCreationExpression) {
             return $this->reflectObjectCreationExpression($frame, $node);
         }
+        if ($node instanceof CallExpression) {
+            return $this->reflectCallExpression($frame, $node);
+        }
+
+        if ($node instanceof MatchExpression) {
+            return $this->reflectMatchExpression($frame, $node);
+        }
+
+        if ($node->parent instanceof Attribute) {
+            return $this->reflectAttribute($frame, $node->parent);
+        }
 
         throw new CouldNotResolveNode(sprintf(
             'Did not know how to reflect node of type "%s"',
@@ -44,15 +57,13 @@ class NodeReflector
         ));
     }
 
-    private function reflectScopedPropertyAccessExpression(Frame $frame, ScopedPropertyAccessExpression $node): ReflectionStaticMethodCall
+    private function reflectScopedPropertyAccessExpression(Frame $frame, ScopedPropertyAccessExpression $node): ReflectionStaticMemberAccess|ReflectionStaticMethodCall
     {
         if ($node->parent instanceof CallExpression) {
             return $this->reflectStaticMethodCall($frame, $node);
         }
-        throw new CouldNotResolveNode(sprintf(
-            'Did not know how to reflect node of type "%s"',
-            get_class($node)
-        ));
+
+        return $this->reflectCaseOrConstant($frame, $node);
     }
 
     private function reflectMemberAccessExpression(Frame $frame, MemberAccessExpression $node): ReflectionMethodCall
@@ -91,5 +102,48 @@ class NodeReflector
             $frame,
             $node
         );
+    }
+
+    private function reflectAttribute(Frame $frame, Attribute $node): ReflectionNode
+    {
+        return new ReflectionAttribute(
+            $this->services,
+            $frame,
+            $node
+        );
+    }
+
+    private function reflectCaseOrConstant(Frame $frame, ScopedPropertyAccessExpression $node): ReflectionStaticMemberAccess
+    {
+        return new ReflectionStaticMemberAccess(
+            $this->services,
+            $frame,
+            $node
+        );
+    }
+
+    private function reflectMatchExpression(Frame $frame, MatchExpression $node): ReflectionNode
+    {
+        return new ReflectionMatchExpression(
+            $this->services,
+            $frame,
+            $node
+        );
+    }
+
+    private function reflectCallExpression(Frame $frame, CallExpression $node): ReflectionNode
+    {
+        if ($node->callableExpression instanceof MemberAccessExpression) {
+            return new ReflectionMethodCall(
+                $this->services,
+                $frame,
+                $node->callableExpression
+            );
+        }
+
+        throw new CouldNotResolveNode(sprintf(
+            'Did not know how to reflect node of type "%s"',
+            get_class($node)
+        ));
     }
 }

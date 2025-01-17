@@ -2,6 +2,7 @@
 
 namespace Phpactor\Extension\LanguageServerHover\Handler;
 
+use function Amp\call;
 use Amp\Promise;
 use Phpactor\Extension\LanguageServerBridge\Converter\PositionConverter;
 use Phpactor\LanguageServerProtocol\Hover;
@@ -28,17 +29,11 @@ use Phpactor\WorseReflection\Reflector;
 
 class HoverHandler implements Handler, CanRegisterCapabilities
 {
-    private Reflector $reflector;
-
-    private ObjectRenderer $renderer;
-
-    private Workspace $workspace;
-
-    public function __construct(Workspace $workspace, Reflector $reflector, ObjectRenderer $renderer)
-    {
-        $this->reflector = $reflector;
-        $this->renderer = $renderer;
-        $this->workspace = $workspace;
+    public function __construct(
+        private Workspace $workspace,
+        private Reflector $reflector,
+        private ObjectRenderer $renderer
+    ) {
     }
 
     public function methods(): array
@@ -55,7 +50,7 @@ class HoverHandler implements Handler, CanRegisterCapabilities
         TextDocumentIdentifier $textDocument,
         Position $position
     ): Promise {
-        return \Amp\call(function () use ($textDocument, $position) {
+        return call(function () use ($textDocument, $position) {
             $document = $this->workspace->get($textDocument->uri);
             $offset = PositionConverter::positionToByteOffset($position, $document->text);
             $document = TextDocumentBuilder::create($document->text)
@@ -73,15 +68,15 @@ class HoverHandler implements Handler, CanRegisterCapabilities
             $offsetReflection = $this->reflector->reflectOffset($document, $offset);
             $info = $this->infoFromReflecionOffset($offsetReflection);
             $string = new MarkupContent('markdown', $info);
-            $nodeContext = $offsetReflection->symbolContext();
+            $nodeContext = $offsetReflection->nodeContext();
 
             return new Hover($string, new Range(
                 PositionConverter::byteOffsetToPosition(
-                    ByteOffset::fromInt($nodeContext->symbol()->position()->start()),
+                    ByteOffset::fromInt($nodeContext->symbol()->position()->start()->toInt()),
                     $document->__toString()
                 ),
                 PositionConverter::byteOffsetToPosition(
-                    ByteOffset::fromInt($nodeContext->symbol()->position()->end()),
+                    ByteOffset::fromInt($nodeContext->symbol()->position()->end()->toInt()),
                     $document->__toString()
                 )
             ));
@@ -95,7 +90,7 @@ class HoverHandler implements Handler, CanRegisterCapabilities
 
     private function infoFromReflecionOffset(ReflectionOffset $offset): string
     {
-        $nodeContext = $offset->symbolContext();
+        $nodeContext = $offset->nodeContext();
 
         if ($info = $this->infoFromSymbolContext($nodeContext)) {
             return $info;
@@ -108,7 +103,7 @@ class HoverHandler implements Handler, CanRegisterCapabilities
     {
         try {
             return $this->renderSymbolContext($nodeContext);
-        } catch (CouldNotFormat $e) {
+        } catch (CouldNotFormat) {
         }
 
         return null;
@@ -116,20 +111,13 @@ class HoverHandler implements Handler, CanRegisterCapabilities
 
     private function renderSymbolContext(NodeContext $nodeContext): ?string
     {
-        switch ($nodeContext->symbol()->symbolType()) {
-            case Symbol::METHOD:
-            case Symbol::PROPERTY:
-            case Symbol::CONSTANT:
-                return $this->renderMember($nodeContext);
-            case Symbol::CLASS_:
-                return $this->renderClass($nodeContext->type());
-            case Symbol::FUNCTION:
-                return $this->renderFunction($nodeContext);
-            case Symbol::DECLARED_CONSTANT:
-                return $this->renderDeclaredConstant($nodeContext);
-        }
-
-        return null;
+        return match ($nodeContext->symbol()->symbolType()) {
+            Symbol::METHOD, Symbol::PROPERTY, Symbol::CONSTANT => $this->renderMember($nodeContext),
+            Symbol::CLASS_ => $this->renderClass($nodeContext->type()),
+            Symbol::FUNCTION => $this->renderFunction($nodeContext),
+            Symbol::DECLARED_CONSTANT => $this->renderDeclaredConstant($nodeContext),
+            default => null,
+        };
     }
 
     private function renderMember(NodeContext $nodeContext): string
@@ -138,7 +126,7 @@ class HoverHandler implements Handler, CanRegisterCapabilities
         $container = $nodeContext->containerType();
         $infos = [];
 
-        foreach ($container->classNamedTypes() as $namedType) {
+        foreach ($container->expandTypes()->classLike() as $namedType) {
             try {
                 $class = $this->reflector->reflectClassLike((string) $namedType);
                 $member = null;
@@ -173,7 +161,7 @@ class HoverHandler implements Handler, CanRegisterCapabilities
                     ),
                     $member
                 ));
-            } catch (NotFound $e) {
+            } catch (NotFound) {
                 continue;
             }
         }
@@ -190,7 +178,7 @@ class HoverHandler implements Handler, CanRegisterCapabilities
             return $notFound->getMessage();
         }
 
-        return $this->renderer->render(new HoverInformation($name, $function->docblock()->formatted(), $function));
+        return $this->renderer->render(new HoverInformation($name, $this->renderer->render($function->docblock()), $function));
     }
 
     private function renderClass(Type $type): string
@@ -198,7 +186,7 @@ class HoverHandler implements Handler, CanRegisterCapabilities
         try {
             $class = $this->reflector->reflectClassLike((string) $type);
             return $this->renderer->render(new HoverInformation(
-                $type->short(),
+                $type->__toString(),
                 $class->docblock()->formatted(),
                 $class
             ));

@@ -7,6 +7,7 @@ use Microsoft\PhpParser\NamespacedNameInterface;
 use Microsoft\PhpParser\Node;
 use Microsoft\PhpParser\Node\QualifiedName as MicrosoftQualifiedName;
 use Microsoft\PhpParser\Node\Statement\ClassDeclaration;
+use Microsoft\PhpParser\Node\Statement\EnumDeclaration;
 use Microsoft\PhpParser\Node\Statement\InterfaceDeclaration;
 use Microsoft\PhpParser\Node\Statement\TraitDeclaration;
 use Microsoft\PhpParser\Parser;
@@ -23,38 +24,21 @@ use Phpactor\Rename\Model\Renamer;
 use Phpactor\ReferenceFinder\ReferenceFinder;
 use Phpactor\TextDocument\ByteOffset;
 use Phpactor\TextDocument\ByteOffsetRange;
+use Phpactor\TextDocument\Exception\TextDocumentNotFound;
 use Phpactor\TextDocument\TextDocument;
 use Phpactor\TextDocument\TextDocumentLocator;
 use RuntimeException;
 
 final class ClassRenamer implements Renamer
 {
-    private NameToUriConverter $newNameToUriConverter;
-
-    private NameToUriConverter $oldNameToUriConverter;
-
-    private ReferenceFinder $referenceFinder;
-
-    private TextDocumentLocator $locator;
-
-    private Parser $parser;
-
-    private ClassMover $classMover;
-
     public function __construct(
-        NameToUriConverter $oldNameToUriConverter,
-        NameToUriConverter $newNameToUriConverter,
-        ReferenceFinder $referenceFinder,
-        TextDocumentLocator $locator,
-        Parser $parser,
-        ClassMover $classMover
+        private NameToUriConverter $oldNameToUriConverter,
+        private NameToUriConverter $newNameToUriConverter,
+        private ReferenceFinder $referenceFinder,
+        private TextDocumentLocator $locator,
+        private Parser $parser,
+        private ClassMover $classMover
     ) {
-        $this->oldNameToUriConverter = $oldNameToUriConverter;
-        $this->newNameToUriConverter = $newNameToUriConverter;
-        $this->referenceFinder = $referenceFinder;
-        $this->locator = $locator;
-        $this->parser = $parser;
-        $this->classMover = $classMover;
     }
 
     public function getRenameRange(TextDocument $textDocument, ByteOffset $offset): ?ByteOffsetRange
@@ -62,6 +46,10 @@ final class ClassRenamer implements Renamer
         $node = $this->parser->parseSourceFile($textDocument->__toString())->getDescendantNodeAtPosition($offset->toInt());
 
         if ($node instanceof ClassDeclaration) {
+            return TokenUtil::offsetRangeFromToken($node->name, false);
+        }
+
+        if ($node instanceof EnumDeclaration) {
             return TokenUtil::offsetRangeFromToken($node->name, false);
         }
 
@@ -109,7 +97,11 @@ final class ClassRenamer implements Renamer
                 continue;
             }
 
-            $referenceDocument = $this->locator->get($reference->location()->uri());
+            try {
+                $referenceDocument = $this->locator->get($reference->location()->uri());
+            } catch (TextDocumentNotFound) {
+                continue;
+            }
 
             $edits = $this->classMover->replaceReferences(
                 $this->classMover->findReferences($referenceDocument->__toString(), $originalName->__toString()),

@@ -2,18 +2,13 @@
 
 namespace Phpactor\DocblockParser;
 
-use Phpactor\DocblockParser\Ast\Node;
+use Phpactor\DocblockParser\Ast\Docblock;
+use RuntimeException;
 
 final class DocblockParser
 {
-    private Lexer $lexer;
-
-    private Parser $parser;
-
-    public function __construct(Lexer $lexer, Parser $parser)
+    public function __construct(private Lexer $lexer, private Parser $parser)
     {
-        $this->lexer = $lexer;
-        $this->parser = $parser;
     }
 
     public static function create(): self
@@ -21,8 +16,16 @@ final class DocblockParser
         return new self(new Lexer(), new Parser());
     }
 
-    public function parse(string $docblock): Node
+    public function parse(string $docblock): Docblock
     {
-        return $this->parser->parse($this->lexer->lex($docblock));
+        $node = $this->parser->parse($this->lexer->lex($docblock));
+        if (!$node instanceof Docblock) {
+            throw new RuntimeException(sprintf(
+                'Expected a Docblock node from parser, but got "%s"',
+                get_class($node)
+            ));
+        }
+
+        return $node;
     }
 }

@@ -12,7 +12,7 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use Phpactor\Indexer\Util\Cast;
+use Phpactor\Cast\Cast;
 use Symfony\Component\Filesystem\Path;
 
 class IndexBuildCommand extends Command
@@ -21,17 +21,11 @@ class IndexBuildCommand extends Command
     const OPT_RESET = 'reset';
     const OPT_WATCH = 'watch';
 
-    private Indexer $indexer;
-
-    private Watcher $watcher;
-
     private MemoryUsage $usage;
 
-    public function __construct(Indexer $indexer, Watcher $watcher)
+    public function __construct(private Indexer $indexer, private Watcher $watcher)
     {
         parent::__construct();
-        $this->indexer = $indexer;
-        $this->watcher = $watcher;
         $this->usage = MemoryUsage::create();
     }
 
@@ -76,7 +70,7 @@ class IndexBuildCommand extends Command
         $job = $this->indexer->getJob($subPath);
         $output->writeln('done');
         $output->writeln('<info>Building index:</info>');
-        $output->write(PHP_EOL);
+        $output->write("\n");
 
         if ($job->size() === 0) {
             $output->writeln('No files found');
@@ -97,8 +91,8 @@ class IndexBuildCommand extends Command
         }
 
         $progress->finish();
-        $output->write(PHP_EOL);
-        $output->write(PHP_EOL);
+        $output->write("\n");
+        $output->write("\n");
 
         $output->writeln(sprintf(
             '<bg=green;fg=black;option>Done in %s seconds using %sb of memory</>',
@@ -112,12 +106,15 @@ class IndexBuildCommand extends Command
         Loop::run(function () use ($output) {
             $process = yield $this->watcher->watch();
 
-            Loop::onSignal(SIGINT, function () use ($output, $process): void {
-                $output->write('Shutting down watchers...');
-                $process->stop();
-                $output->writeln('done');
-                Loop::stop();
-            });
+            // Signals are not supported on Windows
+            if (defined('SIGINT')) {
+                Loop::onSignal(SIGINT, function () use ($output, $process): void {
+                    $output->write('Shutting down watchers...');
+                    $process->stop();
+                    $output->writeln('done');
+                    Loop::stop();
+                });
+            }
 
             $output->writeln(sprintf('<info>Watching for file changes with </>%s<info>...</>', $this->watcher->describe()));
 

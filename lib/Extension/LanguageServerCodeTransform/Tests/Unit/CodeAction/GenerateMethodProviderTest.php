@@ -3,12 +3,13 @@
 namespace Phpactor\Extension\LanguageServerCodeTransform\Tests\Unit\CodeAction;
 
 use Amp\CancellationTokenSource;
+use Amp\Success;
 use Generator;
 use PHPUnit\Framework\TestCase;
-use Phpactor\CodeTransform\Domain\Helper\MissingMethodFinder;
-use Phpactor\CodeTransform\Domain\Helper\MissingMethodFinder\MissingMethod;
-use Phpactor\Extension\LanguageServerCodeTransform\CodeAction\GenerateMethodProvider;
-use Phpactor\Extension\LanguageServerCodeTransform\LspCommand\GenerateMethodCommand;
+use Phpactor\CodeTransform\Domain\Helper\MissingMemberFinder;
+use Phpactor\CodeTransform\Domain\Helper\MissingMemberFinder\MissingMember;
+use Phpactor\Extension\LanguageServerCodeTransform\CodeAction\GenerateMemberProvider;
+use Phpactor\Extension\LanguageServerCodeTransform\LspCommand\GenerateMemberCommand;
 use Phpactor\LanguageServerProtocol\CodeAction;
 use Phpactor\LanguageServerProtocol\Command;
 use Phpactor\LanguageServerProtocol\Diagnostic;
@@ -29,13 +30,13 @@ class GenerateMethodProviderTest extends TestCase
     const EXAMPLE_FILE = 'file:///somefile.php';
 
     /**
-     * @var ObjectProphecy<MissingMethodFinder>
+     * @var ObjectProphecy<MissingMemberFinder>
      */
     private ObjectProphecy $finder;
 
     protected function setUp(): void
     {
-        $this->finder = $this->prophesize(MissingMethodFinder::class);
+        $this->finder = $this->prophesize(MissingMemberFinder::class);
     }
 
     /**
@@ -43,7 +44,7 @@ class GenerateMethodProviderTest extends TestCase
      */
     public function testDiagnostics(array $missingMethods, array $expectedDiagnostics): void
     {
-        $this->finder->find(Argument::type(TextDocument::class))->willReturn($missingMethods);
+        $this->finder->find(Argument::type(TextDocument::class))->willReturn(new Success($missingMethods));
         $provider = $this->createProvider();
 
         $cancel = (new CancellationTokenSource())->getToken();
@@ -57,7 +58,7 @@ class GenerateMethodProviderTest extends TestCase
     }
 
     /**
-     * @return Generator<string,array{array,array}|array{array<int,Phpactor\CodeTransform\Domain\Helper\MissingMethodFinder\MissingMethod>,array<int,Phpactor\LanguageServerProtocol\Diagnostic>}>
+     * @return Generator<string, (array{array, array} | array{array<int, Phpactor\CodeTransform\Domain\Helper\MissingMethodFinder\MissingMethod>, array<int, Diagnostic>})>
      */
     public function provideDiagnosticsTestData(): Generator
     {
@@ -68,15 +69,15 @@ class GenerateMethodProviderTest extends TestCase
 
         yield 'Missing method' => [
             [
-                new MissingMethod(self::EXAMPLE_SOURCE, ByteOffsetRange::fromInts(0, 5))
+                new MissingMember(self::EXAMPLE_SOURCE, ByteOffsetRange::fromInts(0, 5), 'method')
             ],
             [
-                Diagnostic::fromArray([
-                    'range' => ProtocolFactory::range(0, 0, 0, 5),
-                    'message' => 'Method "foobar" does not exist',
-                    'severity' => DiagnosticSeverity::WARNING,
-                    'source' => 'phpactor',
-                ])
+                new Diagnostic(
+                    range: ProtocolFactory::range(0, 0, 0, 5),
+                    message: 'Method "foobar" does not exist',
+                    severity: DiagnosticSeverity::WARNING,
+                    source: 'phpactor',
+                )
             ]
         ];
     }
@@ -86,7 +87,7 @@ class GenerateMethodProviderTest extends TestCase
      */
     public function testProvideActions(array $missingMethods, array $expectedActions): void
     {
-        $this->finder->find(Argument::type(TextDocument::class))->willReturn($missingMethods);
+        $this->finder->find(Argument::type(TextDocument::class))->willReturn(new Success($missingMethods));
         $provider = $this->createProvider();
         $cancel = (new CancellationTokenSource())->getToken();
         self::assertEquals(
@@ -100,7 +101,7 @@ class GenerateMethodProviderTest extends TestCase
     }
 
     /**
-     * @return Generator<string,array{array,array}|array{array<int,Phpactor\CodeTransform\Domain\Helper\MissingMethodFinder\MissingMethod>,array<int,Phpactor\LanguageServerProtocol\CodeAction>}>
+     * @return Generator<string, (array{array, array} | array{array<int, Phpactor\CodeTransform\Domain\Helper\MissingMethodFinder\MissingMethod>, array<int, CodeAction>})>
      */
     public function provideActionsTestData(): Generator
     {
@@ -111,23 +112,23 @@ class GenerateMethodProviderTest extends TestCase
 
         yield 'Missing method' => [
             [
-                new MissingMethod(self::EXAMPLE_SOURCE, ByteOffsetRange::fromInts(0, 5))
+                new MissingMember(self::EXAMPLE_SOURCE, ByteOffsetRange::fromInts(0, 5), 'method')
             ],
             [
                 CodeAction::fromArray([
                     'title' =>  'Fix "Method "foobar" does not exist"',
-                    'kind' => GenerateMethodProvider::KIND,
+                    'kind' => GenerateMemberProvider::KIND,
                     'diagnostics' => [
-                        Diagnostic::fromArray([
-                            'range' => ProtocolFactory::range(0, 0, 0, 5),
-                            'message' => 'Method "foobar" does not exist',
-                            'severity' => DiagnosticSeverity::WARNING,
-                            'source' => 'phpactor',
-                        ])
+                        new Diagnostic(
+                            range: ProtocolFactory::range(0, 0, 0, 5),
+                            message: 'Method "foobar" does not exist',
+                            severity: DiagnosticSeverity::WARNING,
+                            source: 'phpactor',
+                        )
                     ],
                     'command' => new Command(
-                        'Generate method',
-                        GenerateMethodCommand::NAME,
+                        'Generate member',
+                        GenerateMemberCommand::NAME,
                         [
                             self::EXAMPLE_FILE,
                             0
@@ -138,8 +139,8 @@ class GenerateMethodProviderTest extends TestCase
         ];
     }
 
-    private function createProvider(): GenerateMethodProvider
+    private function createProvider(): GenerateMemberProvider
     {
-        return new GenerateMethodProvider($this->finder->reveal());
+        return new GenerateMemberProvider($this->finder->reveal());
     }
 }

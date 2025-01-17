@@ -17,32 +17,23 @@ use Phpactor\WorseReflection\Reflector;
 
 class WorseReplaceQualifierWithImport implements ReplaceQualifierWithImport
 {
-    private Reflector $reflector;
-
-    private BuilderFactory $factory;
-
-    private Updater $updater;
-
     private Parser $parser;
 
     public function __construct(
-        Reflector $reflector,
-        BuilderFactory $sourceBuilder,
-        Updater $updater,
-        Parser $parser = null
+        private Reflector $reflector,
+        private BuilderFactory $factory,
+        private Updater $updater,
+        ?Parser $parser = null
     ) {
-        $this->reflector = $reflector;
-        $this->factory = $sourceBuilder;
         $this->parser = $parser ?: new Parser();
-        $this->updater = $updater;
     }
 
     public function getTextEdits(SourceCode $sourceCode, int $offset): TextDocumentEdits
     {
-        $symbolContext = $this->reflector
-            ->reflectOffset($sourceCode->__toString(), $offset)
-            ->symbolContext();
-        $type = $symbolContext->type();
+        $nodeContext = $this->reflector
+            ->reflectOffset($sourceCode, $offset)
+            ->nodeContext();
+        $type = $nodeContext->type();
 
         if (!$type instanceof ClassType) {
             return new TextDocumentEdits($sourceCode->uri(), TextEdits::none());
@@ -51,12 +42,16 @@ class WorseReplaceQualifierWithImport implements ReplaceQualifierWithImport
         $textEdits = $this->getTextEditForImports($sourceCode, $type);
 
         $newClassName = $type->name()->short();
-        $position = $symbolContext->symbol()->position();
+        $position = $nodeContext->symbol()->position();
 
         return new TextDocumentEdits(
             $sourceCode->uri(),
             $textEdits->merge(TextEdits::fromTextEdits([
-                TextEdit::create($position->start(), $position->end() - $position->start(), $newClassName)
+                TextEdit::create(
+                    $position->start()->toInt(),
+                    $position->end()->toInt() - $position->start()->toInt(),
+                    $newClassName
+                )
             ]))
         );
     }

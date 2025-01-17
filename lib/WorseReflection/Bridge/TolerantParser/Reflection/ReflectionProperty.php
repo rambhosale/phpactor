@@ -21,14 +21,6 @@ use InvalidArgumentException;
 
 class ReflectionProperty extends AbstractReflectionClassMember implements CoreReflectionProperty
 {
-    private ServiceLocator $serviceLocator;
-
-    private PropertyDeclaration $propertyDeclaration;
-
-    private Variable $variable;
-
-    private ReflectionClassLike $class;
-
     private PropertyTypeResolver $typeResolver;
 
     private DeclaredMemberTypeResolver $memberTypeResolver;
@@ -36,24 +28,20 @@ class ReflectionProperty extends AbstractReflectionClassMember implements CoreRe
     private ?string $name = null;
 
     public function __construct(
-        ServiceLocator $serviceLocator,
-        ReflectionClassLike $class,
-        PropertyDeclaration $propertyDeclaration,
-        Variable $variable
+        private ServiceLocator $serviceLocator,
+        private ReflectionClassLike $class,
+        private PropertyDeclaration $propertyDeclaration,
+        private Variable $variable
     ) {
-        $this->serviceLocator = $serviceLocator;
-        $this->propertyDeclaration = $propertyDeclaration;
-        $this->variable = $variable;
-        $this->class = $class;
         $this->typeResolver = new PropertyTypeResolver($this);
         $this->memberTypeResolver = new DeclaredMemberTypeResolver($this->serviceLocator->reflector());
     }
 
     public function declaringClass(): ReflectionClassLike
     {
-        /** @var NamespacedNameInterface $classDeclaration */
+        /** @var NamespacedNameInterface|null $classDeclaration */
         $classDeclaration = $this->propertyDeclaration->getFirstAncestor(ClassDeclaration::class, TraitDeclaration::class);
-        $class = $classDeclaration->getNamespacedName();
+        $class = $classDeclaration?->getNamespacedName();
 
         if (null === $class) {
             throw new InvalidArgumentException(sprintf(
@@ -77,7 +65,7 @@ class ReflectionProperty extends AbstractReflectionClassMember implements CoreRe
     public function nameRange(): ByteOffsetRange
     {
         return ByteOffsetRange::fromInts(
-            $this->variable->getStartPosition(),
+            $this->variable->getStartPosition() + 1, // do not return the $
             $this->variable->getEndPosition(),
         );
     }

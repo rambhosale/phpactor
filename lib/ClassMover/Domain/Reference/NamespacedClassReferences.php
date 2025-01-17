@@ -17,14 +17,11 @@ final class NamespacedClassReferences implements IteratorAggregate
      */
     private array $classRefs = [];
 
-    private NamespaceReference $namespaceRef;
-
     /**
      * @param ClassReference[] $classRefs
      */
-    private function __construct(NamespaceReference $namespaceRef, array $classRefs)
+    private function __construct(private NamespaceReference $namespaceRef, array $classRefs)
     {
-        $this->namespaceRef = $namespaceRef;
         foreach ($classRefs as $classRef) {
             $this->add($classRef);
         }
@@ -52,7 +49,7 @@ final class NamespacedClassReferences implements IteratorAggregate
 
     public function isEmpty(): bool
     {
-        return empty($this->classRefs);
+        return $this->classRefs === [];
     }
 
     public function getIterator(): Traversable

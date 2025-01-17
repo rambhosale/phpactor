@@ -62,7 +62,7 @@ class HomogeneousReflectionMemberCollection extends AbstractReflectionCollection
     public function atOffset(int $offset): HomogeneousReflectionMemberCollection
     {
         return new static(array_filter($this->items, function (ReflectionMember $item) use ($offset) {
-            return $item->position()->start() <= $offset && $item->position()->end() >= $offset;
+            return $item->position()->start()->toInt() <= $offset && $item->position()->end()->toInt() >= $offset;
         }));
     }
 
@@ -83,9 +83,7 @@ class HomogeneousReflectionMemberCollection extends AbstractReflectionCollection
      */
     public function virtual(): HomogeneousReflectionMemberCollection
     {
-        return new static(array_filter($this->items, function (ReflectionMember $member) {
-            return true === $member->isVirtual();
-        }));
+        return new static(array_filter($this->items, fn (ReflectionMember $member) => $member->isVirtual()));
     }
 
     /**
@@ -93,9 +91,7 @@ class HomogeneousReflectionMemberCollection extends AbstractReflectionCollection
      */
     public function real(): HomogeneousReflectionMemberCollection
     {
-        return new static(array_filter($this->items, function (ReflectionMember $member) {
-            return false === $member->isVirtual();
-        }));
+        return new static(array_filter($this->items, fn (ReflectionMember $member) => !$member->isVirtual()));
     }
 
     public function methods(): ReflectionMethodCollection

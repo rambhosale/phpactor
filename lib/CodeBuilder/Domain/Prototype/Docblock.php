@@ -4,37 +4,39 @@ namespace Phpactor\CodeBuilder\Domain\Prototype;
 
 class Docblock
 {
-    private $docblock;
-
-    private function __construct(string $docblock = null)
+    private function __construct(private ?string $docblock = null)
     {
-        $this->docblock = $docblock;
     }
 
-    public function __toString()
+    public function __toString(): string
     {
-        return $this->docblock;
+        return $this->docblock ?? '';
     }
 
-    public static function fromString(string $string)
+    public static function fromString(string $string): self
     {
         return new self($string);
     }
 
-    public static function none()
+    public static function none(): self
     {
         return new self();
     }
 
-    public function notNone()
+    public function notNone(): bool
     {
         return null !== $this->docblock;
     }
 
+    /**
+     * @return list<string>
+     */
     public function asLines(): array
     {
-        $lines = explode(PHP_EOL, $this->docblock);
+        if ($this->docblock === null) {
+            return [];
+        }
 
-        return $lines;
+        return explode("\n", $this->docblock);
     }
 }

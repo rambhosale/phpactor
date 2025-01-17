@@ -2,6 +2,8 @@
 
 namespace Phpactor\WorseReflection\Bridge\TolerantParser\Reflection;
 
+use Phpactor\WorseReflection\Core\DocBlock\DocBlock;
+use Phpactor\WorseReflection\Core\Inference\GenericMapResolver;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionFunctionLike;
 use Phpactor\WorseReflection\Core\ServiceLocator;
 use Microsoft\PhpParser\Node\Parameter;
@@ -17,27 +19,15 @@ use Phpactor\WorseReflection\TypeUtil;
 
 class ReflectionParameter extends AbstractReflectedNode implements CoreReflectionParameter
 {
-    private ServiceLocator $serviceLocator;
-
-    private Parameter $parameter;
-
     private DeclaredMemberTypeResolver $memberTypeResolver;
 
-    private ReflectionFunctionLike $functionLike;
-
-    private int $index;
-
     public function __construct(
-        ServiceLocator $serviceLocator,
-        ReflectionFunctionLike $functionLike,
-        Parameter $parameter,
-        int $index
+        private ServiceLocator $serviceLocator,
+        private ReflectionFunctionLike $functionLike,
+        private Parameter $parameter,
+        private int $index
     ) {
-        $this->serviceLocator = $serviceLocator;
-        $this->parameter = $parameter;
         $this->memberTypeResolver = new DeclaredMemberTypeResolver($serviceLocator->reflector());
-        $this->functionLike = $functionLike;
-        $this->index = $index;
     }
 
     public function name(): string
@@ -73,7 +63,12 @@ class ReflectionParameter extends AbstractReflectedNode implements CoreReflectio
 
     public function inferredType(): Type
     {
-        return (new ParameterTypeResolver($this))->resolve();
+        return (new ParameterTypeResolver(
+            $this,
+            new GenericMapResolver(
+                $this->serviceLocator()->reflector()
+            )
+        ))->resolve();
     }
 
     public function default(): DefaultValue
@@ -81,7 +76,7 @@ class ReflectionParameter extends AbstractReflectedNode implements CoreReflectio
         if (null === $this->parameter->default) {
             return DefaultValue::undefined();
         }
-        $value = $this->serviceLocator->symbolContextResolver()->resolveNode(new Frame('test'), $this->parameter->default)->type();
+        $value = $this->serviceLocator->nodeContextResolver()->resolveNode(new Frame(), $this->parameter->default)->type();
 
         return DefaultValue::fromValue(TypeUtil::valueOrNull($value));
     }
@@ -89,14 +84,6 @@ class ReflectionParameter extends AbstractReflectedNode implements CoreReflectio
     public function byReference(): bool
     {
         return (bool) $this->parameter->byRefToken;
-    }
-
-    /**
-     * @deprecated use functionLike instead
-     */
-    public function method(): ReflectionFunctionLike
-    {
-        return $this->functionLike;
     }
 
     public function functionLike(): ReflectionFunctionLike
@@ -117,6 +104,14 @@ class ReflectionParameter extends AbstractReflectedNode implements CoreReflectio
     public function index(): int
     {
         return $this->index;
+    }
+
+    public function docblock(): DocBlock
+    {
+        return $this->serviceLocator()->docblockFactory()->create(
+            $this->parameter->getLeadingCommentAndWhitespaceText(),
+            $this->scope()
+        );
     }
 
     protected function node(): Node

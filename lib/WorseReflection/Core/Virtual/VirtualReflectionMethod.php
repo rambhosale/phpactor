@@ -6,7 +6,7 @@ use Phpactor\WorseReflection\Core\Deprecation;
 use Phpactor\WorseReflection\Core\DocBlock\DocBlock;
 use Phpactor\WorseReflection\Core\Inference\Frame;
 use Phpactor\WorseReflection\Core\NodeText;
-use Phpactor\WorseReflection\Core\Position;
+use Phpactor\TextDocument\ByteOffsetRange;
 use Phpactor\WorseReflection\Core\Reflection\Collection\ReflectionParameterCollection;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionClassLike;
 use Phpactor\WorseReflection\Core\Reflection\ReflectionMember;
@@ -17,18 +17,10 @@ use Phpactor\WorseReflection\Core\Visibility;
 
 class VirtualReflectionMethod extends VirtualReflectionMember implements ReflectionMethod
 {
-    private ReflectionParameterCollection $parameters;
-
-    private NodeText $body;
-
     private Type $type;
 
-    private bool $isAbstract;
-
-    private bool $isStatic;
-
     public function __construct(
-        Position $position,
+        ByteOffsetRange $position,
         ReflectionClassLike $declaringClass,
         ReflectionClassLike $class,
         string $name,
@@ -38,17 +30,13 @@ class VirtualReflectionMethod extends VirtualReflectionMember implements Reflect
         Visibility $visiblity,
         Type $inferredType,
         Type $type,
-        ReflectionParameterCollection $parameters,
-        NodeText $body,
-        bool $isAbstract,
-        bool $isStatic,
+        private ReflectionParameterCollection $parameters,
+        private NodeText $body,
+        private bool $isAbstract,
+        private bool $isStatic,
         Deprecation $deprecation
     ) {
         parent::__construct($position, $declaringClass, $class, $name, $frame, $docblock, $scope, $visiblity, $inferredType, $type, $deprecation);
-        $this->body = $body;
-        $this->parameters = $parameters;
-        $this->isAbstract = $isAbstract;
-        $this->isStatic = $isStatic;
     }
 
     public static function fromReflectionMethod(ReflectionMethod $reflectionMethod): self

@@ -3,6 +3,7 @@
 namespace Phpactor\Extension\LanguageServerRename\Handler;
 
 use Amp\Promise;
+use Phpactor\LanguageServerProtocol\FileOperationOptions;
 use Phpactor\Rename\Model\FileRenamer;
 use Phpactor\Rename\Model\LocatedTextEditsMap;
 use Phpactor\Extension\LanguageServerRename\Util\LocatedTextEditConverter;
@@ -20,14 +21,8 @@ use function Amp\call;
 
 class FileRenameHandler implements Handler, CanRegisterCapabilities
 {
-    private FileRenamer $renamer;
-
-    private LocatedTextEditConverter $converter;
-
-    public function __construct(FileRenamer $renamer, LocatedTextEditConverter $converter)
+    public function __construct(private FileRenamer $renamer, private LocatedTextEditConverter $converter)
     {
-        $this->renamer = $renamer;
-        $this->converter = $converter;
     }
 
 
@@ -57,10 +52,14 @@ class FileRenameHandler implements Handler, CanRegisterCapabilities
 
     public function registerCapabiltiies(ServerCapabilities $capabilities): void
     {
-        $capabilities->workspace['fileOperations']['willRename'] = new FileOperationRegistrationOptions([
-            new FileOperationFilter(
-                new FileOperationPattern('**/*.php')
-            )
-        ]);
+        $capabilities->workspace['fileOperations'] = new FileOperationOptions(willRename: new FileOperationRegistrationOptions(
+            filters: [
+                new FileOperationFilter(
+                    new FileOperationPattern(
+                        glob: '**/*.php'
+                    )
+                ),
+            ]
+        ));
     }
 }

@@ -17,16 +17,8 @@ use Phpactor\WorseReflection\Reflector;
 
 class WorseGenerateDecorator implements GenerateDecorator
 {
-    private Reflector $reflector;
-
-    private Updater $updater;
-
-    public function __construct(
-        Reflector $reflector,
-        Updater $updater
-    ) {
-        $this->reflector = $reflector;
-        $this->updater = $updater;
+    public function __construct(private Reflector $reflector, private Updater $updater)
+    {
     }
 
     public function getTextEdits(SourceCode $source, string $interfaceFQN): TextEdits
@@ -56,7 +48,7 @@ class WorseGenerateDecorator implements GenerateDecorator
 
             if ($interfaceMethod->returnType()->isDefined()) {
                 $method->returnType($interfaceMethod->returnType()->toLocalType($class->scope())->toPhpString());
-                foreach ($interfaceMethod->returnType()->classNamedTypes() as $type) {
+                foreach ($interfaceMethod->returnType()->allTypes()->classLike() as $type) {
                     $builder->use($type->name());
                 }
             }
@@ -79,7 +71,7 @@ class WorseGenerateDecorator implements GenerateDecorator
             $parameter = $method->parameter($interfaceMethodParameter->name())
                 ->type($interfaceMethodParameter->type()->toLocalType($class->scope())->toPhpString());
 
-            foreach ($interfaceMethodParameter->type()->classNamedTypes() as $type) {
+            foreach ($interfaceMethodParameter->type()->expandTypes()->classLike() as $type) {
                 $builder->use($type->name());
             }
 

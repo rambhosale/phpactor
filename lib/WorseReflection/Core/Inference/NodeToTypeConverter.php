@@ -33,20 +33,17 @@ class NodeToTypeConverter
 {
     private LoggerInterface $logger;
 
-    private Reflector $reflector;
-
     public function __construct(
-        Reflector $reflector,
+        private Reflector $reflector,
         ?LoggerInterface $logger = null
     ) {
         $this->logger = $logger ?: new NullLogger();
-        $this->reflector = $reflector;
     }
 
     /**
      * @param null|Type|string $type
      */
-    public function resolve(Node $node, $type = null, Name $currentClass = null): Type
+    public function resolve(Node $node, $type = null, ?Name $currentClass = null): Type
     {
         $type = $type ?: $node->getText();
 
@@ -111,7 +108,7 @@ class NodeToTypeConverter
         );
     }
 
-    private function currentClass(Node $node, Name $currentClass = null): Type
+    private function currentClass(Node $node, ?Name $currentClass = null): Type
     {
         if ($currentClass) {
             return TypeFactory::fromStringWithReflector($currentClass->full(), $this->reflector);

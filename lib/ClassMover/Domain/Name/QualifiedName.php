@@ -6,16 +6,26 @@ use InvalidArgumentException;
 
 class QualifiedName
 {
-    protected $parts;
+    private bool $fullyQualified = false;
 
-    protected function __construct(array $parts)
+    /**
+     * @param non-empty-array<string> $parts
+     */
+    protected function __construct(protected array $parts)
     {
-        $this->parts = $parts;
+        if (count($this->parts) > 1) {
+            $this->fullyQualified = $this->parts[0] === '';
+        }
     }
 
-    public function __toString()
+    public function __toString(): string
     {
         return implode('\\', $this->parts);
+    }
+
+    public function wasFullyQualified(): bool
+    {
+        return $this->fullyQualified;
     }
 
     public static function root(): QualifiedName
@@ -23,30 +33,31 @@ class QualifiedName
         return new static([]);
     }
 
-    public function isEqualTo(QualifiedName $name)
+    public function isEqualTo(QualifiedName $name): bool
     {
         return $name->__toString() == $this->__toString();
     }
 
-    public static function fromString(string $string)
+    public static function fromString(string $string): static
     {
-        if (empty($string)) {
+        if ($string === '') {
             throw new InvalidArgumentException(
                 'Name cannot be empty'
             );
         }
 
+        /** @var non-empty-array<string> $parts */
         $parts = explode('\\', trim($string));
 
         return new static($parts);
     }
 
-    public function base()
+    public function base(): string
     {
         return reset($this->parts);
     }
 
-    public function parentNamespace(): QualifiedName
+    public function parentNamespace(): static
     {
         $parts = $this->parts;
         array_pop($parts);
@@ -54,17 +65,17 @@ class QualifiedName
         return new static($parts);
     }
 
-    public function equals(QualifiedName $qualifiedName)
+    public function equals(QualifiedName $qualifiedName): bool
     {
         return $qualifiedName->__toString() == $this->__toString();
     }
 
-    public function head()
+    public function head(): string
     {
         return end($this->parts);
     }
 
-    public function transpose(QualifiedName $name)
+    public function transpose(QualifiedName $name): self
     {
         // both fully qualified names? great, nothing to see here.
         if ($this instanceof FullyQualifiedName && $name instanceof FullyQualifiedName) {
@@ -82,12 +93,15 @@ class QualifiedName
         return new self(array_reverse(array_filter($newParts)));
     }
 
-    public function parts()
+    /**
+     * @return string[]
+     */
+    public function parts(): array
     {
         return $this->parts;
     }
 
-    public function isAlone()
+    public function isAlone(): bool
     {
         return count($this->parts) === 1;
     }

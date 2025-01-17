@@ -8,16 +8,10 @@ use Phpactor\Extension\Behat\Behat\Exception\CouldNotResolverContextClass;
 class ChainContextClassResolver implements ContextClassResolver
 {
     /**
-     * @var ContextClassResolver[]
-     */
-    private array $contextClassResolvers;
-
-    /**
      * @param ContextClassResolver[] $contextClassResolvers
      */
-    public function __construct(array $contextClassResolvers)
+    public function __construct(private array $contextClassResolvers)
     {
-        $this->contextClassResolvers = $contextClassResolvers;
     }
 
     public function resolve(string $className): string
@@ -25,7 +19,7 @@ class ChainContextClassResolver implements ContextClassResolver
         foreach ($this->contextClassResolvers as $resolver) {
             try {
                 return $resolver->resolve($className);
-            } catch (CouldNotResolverContextClass $couldNot) {
+            } catch (CouldNotResolverContextClass) {
             }
         }
 

@@ -23,6 +23,9 @@ use Phpactor\WorseReflection\Core\Type\GeneratorType;
 use Phpactor\WorseReflection\Core\Type\GenericClassType;
 use Phpactor\WorseReflection\Core\Type\HexLiteralType;
 use Phpactor\WorseReflection\Core\Type\IntLiteralType;
+use Phpactor\WorseReflection\Core\Type\IntNegative;
+use Phpactor\WorseReflection\Core\Type\IntPositive;
+use Phpactor\WorseReflection\Core\Type\IntRangeType;
 use Phpactor\WorseReflection\Core\Type\IntType;
 use Phpactor\WorseReflection\Core\Type\IntersectionType;
 use Phpactor\WorseReflection\Core\Type\MissingType;
@@ -54,9 +57,9 @@ class TypeFactory
         return self::fromString($type, $reflector);
     }
 
-    public static function fromString(string $type, Reflector $reflector = null): Type
+    public static function fromString(string $type, ?Reflector $reflector = null): Type
     {
-        if ('?' === substr($type, 0, 1)) {
+        if (str_starts_with($type, '?')) {
             return self::nullable(self::typeFromString(substr($type, 1)));
         }
 
@@ -180,7 +183,7 @@ class TypeFactory
     /**
      * @param string|ClassName $className
      */
-    public static function class($className, ClassReflector $reflector = null): ClassType
+    public static function class($className, ?ClassReflector $reflector = null): ClassType
     {
         $name = ClassName::fromUnknown($className);
         if ($reflector) {
@@ -362,12 +365,27 @@ class TypeFactory
         return new EnumCaseType($reflector, $enumType, $name);
     }
 
-    public static function enumBackedCaseType(ClassType $enumType, string $name, Type $value): EnumBackedCaseType
+    public static function enumBackedCaseType(Reflector $reflector, ClassType $enumType, string $name, Type $value): EnumBackedCaseType
     {
-        return new EnumBackedCaseType($enumType, $name, $value);
+        return new EnumBackedCaseType($reflector, $enumType, $name, $value);
     }
 
-    private static function typeFromString(string $type, Reflector $reflector = null): Type
+    public static function intRange(Type $lower, Type $upper): IntRangeType
+    {
+        return new IntRangeType($lower, $upper);
+    }
+
+    public static function intPositive(): IntPositive
+    {
+        return new IntPositive();
+    }
+
+    public static function intNegative(): IntNegative
+    {
+        return new IntNegative();
+    }
+
+    private static function typeFromString(string $type, ?Reflector $reflector = null): Type
     {
         if ('' === $type) {
             return self::unknown();
@@ -464,7 +482,7 @@ class TypeFactory
             return new BinLiteralType($value);
         }
 
-        if (false === strpos($value, '.')) {
+        if (!str_contains($value, '.')) {
             return self::intLiteral((int)$value);
         }
 

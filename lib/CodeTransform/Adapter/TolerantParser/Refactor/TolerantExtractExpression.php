@@ -20,7 +20,7 @@ class TolerantExtractExpression implements ExtractExpression
 {
     private Parser $parser;
 
-    public function __construct(Parser $parser = null)
+    public function __construct(?Parser $parser = null)
     {
         $this->parser = $parser ?: new Parser();
     }
@@ -41,7 +41,7 @@ class TolerantExtractExpression implements ExtractExpression
         $endPosition = $expression->getEndPosition();
 
         $extractedString = rtrim(trim($source->extractSelection($startPosition, $endPosition)), ';');
-        $assigment = sprintf('$%s = %s;', $variableName, $extractedString) . PHP_EOL;
+        $assigment = sprintf('$%s = %s;', $variableName, $extractedString) . "\n";
 
         $statement = $expression->getFirstAncestor(StatementNode::class);
         assert($statement instanceof StatementNode);
@@ -78,7 +78,7 @@ class TolerantExtractExpression implements ExtractExpression
                     }
                 );
 
-                if (empty($expressions)) {
+                if ($expressions === []) {
                     return null;
                 }
 
@@ -161,7 +161,7 @@ class TolerantExtractExpression implements ExtractExpression
         ];
     }
 
-    private function outerExpression(Node $node, Node $originalNode = null): ?Expression
+    private function outerExpression(Node $node, ?Node $originalNode = null): ?Expression
     {
         $originalNode = $originalNode ?: $node;
 

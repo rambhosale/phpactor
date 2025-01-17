@@ -10,19 +10,15 @@ use Phpactor\WorseReflection\Reflector;
 
 class WorseNameToUriConverter implements NameToUriConverter
 {
-    private Reflector $reflector;
-
-    public function __construct(
-        Reflector $reflector
-    ) {
-        $this->reflector = $reflector;
+    public function __construct(private Reflector $reflector)
+    {
     }
 
 
     public function convert(string $className): TextDocumentUri
     {
         try {
-            $uri = $this->reflector->reflectClass($className)->sourceCode()->uri();
+            $uri = $this->reflector->reflectClassLike($className)->sourceCode()->uri();
         } catch (NotFound $notFound) {
             throw new CouldNotConvertClassToUri($notFound->getMessage(), 0, $notFound);
         }
